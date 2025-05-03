@@ -1,0 +1,131 @@
+PLATFORM OPTIMIZATION GUIDE
+
+This guide provides detailed optimization strategies for different communication platforms to ensure enhanced text is appropriately tailored to its intended environment.
+
+EMAIL PLATFORM
+Formal Business:
+- Use proper salutations (Dear [Name],) and closings (Sincerely, Regards)
+- Maintain clear paragraph structure with introduction, body, conclusion
+- Use complete sentences and proper punctuation
+- Include professional signature with relevant contact information
+- Avoid contractions and colloquial language
+- Use appropriate subject line formatting
+
+Professional-Casual:
+- Use appropriate greetings (Hello [Name], Hi [Team]) and closings (Best, Thanks)
+- Balance professionalism with approachability
+- Use clear paragraph structure with some flexibility
+- Include concise signature with essential contact information
+- Allow selective use of contractions for readability
+- Maintain professional tone while being conversational
+
+SLACK/TEAMS PLATFORM
+Professional:
+- Use proper formatting for code blocks with language specification
+- Structure messages with clear headings using bold formatting
+- Use thread references and @mentions appropriately
+- Include concise bullet points for multiple items
+- Balance brevity with sufficient detail
+- Use emoji reactions sparingly and professionally
+
+Casual:
+- Use platform-specific formatting (bold, italic, code blocks)
+- Incorporate appropriate emoji usage for tone
+- Keep messages concise with line breaks for readability
+- Use threads for longer discussions
+- Include relevant links with descriptive text
+- Balance informality with clarity
+
+TWITTER/SOCIAL PLATFORM
+Professional:
+- Optimize for character limits while maintaining clarity
+- Use hashtags strategically and sparingly
+- Structure for readability on mobile devices
+- Include clear calls to action when appropriate
+- Maintain professional tone while being engaging
+- Use line breaks effectively for visual scanning
+
+Casual:
+- Incorporate platform-appropriate abbreviations
+- Use relevant hashtags and @mentions
+- Balance brevity with personality
+- Structure for engagement (questions, polls)
+- Use emoji to convey tone efficiently
+- Optimize for shareability and conversation
+
+WHATSAPP/SMS PLATFORM
+Professional:
+- Maintain clear structure with greeting and closing
+- Use paragraph breaks for distinct points
+- Avoid excessive abbreviations
+- Include clear action items or questions
+- Use professional but conversational tone
+- Keep messages concise but complete
+
+Casual:
+- Use conversational, natural language
+- Incorporate appropriate emoji and reactions
+- Keep messages brief with natural breaks
+- Use platform-specific features (reactions, replies)
+- Allow informal language while maintaining clarity
+- Structure for quick reading and response
+
+LINKEDIN PLATFORM
+Professional Networking:
+- Use industry-appropriate terminology
+- Structure content with clear value proposition
+- Include relevant hashtags for discoverability
+- Maintain professional tone throughout
+- Balance personal voice with business focus
+- Include clear calls to action or connection points
+
+Thought Leadership:
+- Structure content with clear thesis and supporting points
+- Use data points and insights where relevant
+- Include industry-specific terminology appropriately
+- Balance authority with accessibility
+- Maintain professional formatting with paragraph breaks
+- Include relevant hashtags for industry context
+
+GITHUB/TECHNICAL PLATFORM
+Issue/PR Description:
+- Use clear, descriptive titles
+- Structure with problem, reproduction steps, expected behavior
+- Include code blocks with proper formatting and syntax highlighting
+- Use technical terminology precisely and consistently
+- Include system/environment information when relevant
+- Structure for technical readability and troubleshooting
+
+Technical Documentation:
+- Use hierarchical heading structure
+- Include code examples with proper formatting
+- Balance technical precision with clarity
+- Structure for both scanning and detailed reading
+- Use consistent terminology throughout
+- Include relevant cross-references and links
+
+DISCORD/COMMUNITY PLATFORM
+Moderation/Announcement:
+- Use clear, attention-grabbing formatting for important points
+- Structure with purpose, details, and next steps
+- Use appropriate mentions (@everyone, @role) judiciously
+- Include relevant emoji for visual scanning
+- Balance authority with community-appropriate tone
+- Structure for both immediate action and reference
+
+Community Discussion:
+- Use conversational but clear language
+- Structure longer messages with headings or bullet points
+- Include relevant references to channels or previous discussions
+- Use platform-specific formatting (code blocks, spoilers)
+- Balance personality with clarity
+- Structure for engagement and response
+
+GENERAL OPTIMIZATION PRINCIPLES
+Across all platforms:
+- Respect the original format's core structure
+- Maintain the original tone (formal/informal) unless explicitly changing
+- Preserve technical terminology and domain-specific language
+- Optimize for the reading environment (mobile, desktop, etc.)
+- Balance brevity with completeness
+- Ensure enhanced text serves its original purpose more effectively

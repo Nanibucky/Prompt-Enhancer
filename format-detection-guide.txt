@@ -1,0 +1,103 @@
+FORMAT DETECTION GUIDE
+
+This guide provides detailed criteria for accurately identifying text formats to ensure proper enhancement while preserving structure.
+
+EMAIL FORMAT
+Primary indicators (need at least 2):
+- Contains headers (From:, To:, Subject:, Date:, Cc:, Bcc:)
+- Contains formal greeting (Dear, Hello, Hi) followed by name and comma
+- Contains formal closing (Regards, Sincerely, Best, Thank you) followed by comma
+- Contains signature block (separated by -- or line break after closing)
+- Contains email address in standard format (name@domain.com)
+
+Secondary indicators:
+- Formal business language
+- Paragraph structure with clear introduction, body, conclusion
+- References to attachments or previous correspondence
+- Professional signature with contact information
+
+CODE FORMAT
+Primary indicators (need at least 1):
+- Contains code blocks with backticks (```) or inline code with single backticks (`)
+- Contains multiple programming keywords (function, class, const, let, var, import, export, if, else, for, while, return, try, catch)
+- Contains language-specific syntax patterns (brackets, semicolons, indentation)
+
+Secondary indicators:
+- Variable declarations and assignments
+- Function definitions
+- Comments (// or /* */)
+- Import/export statements
+- API or library references
+
+LIST FORMAT
+Primary indicators:
+- Contains multiple lines starting with bullet points (-, *, •) or numbers (1., 2., etc.)
+- Consistent indentation pattern for hierarchical lists
+- Parallel structure across list items
+
+Secondary indicators:
+- Introductory text before list
+- Consistent capitalization pattern across items
+- Similar length or structure of list items
+
+CHAT/CONVERSATION FORMAT
+Primary indicators:
+- Contains multiple lines with speaker attribution (Name: Message)
+- Turn-taking pattern with alternating speakers
+- Conversational language and tone
+
+Secondary indicators:
+- Time stamps
+- Message reactions or emojis
+- Quoted replies
+- Informal language patterns
+
+MESSAGE THREAD FORMAT
+Primary indicators:
+- Contains quoted text with > character
+- Reply structure with original message and response
+- Reference to previous message
+
+Secondary indicators:
+- "On [date], [name] wrote:" pattern
+- Indentation or formatting to distinguish quoted text
+- "Re:" prefix in subject or topic
+
+TABLE FORMAT
+Primary indicators:
+- Contains pipe characters (|) forming columns and rows
+- Contains grid-like structure with aligned columns
+- Contains header row separated by dashes
+
+Secondary indicators:
+- Column headers
+- Consistent spacing or alignment
+- Row and column counts match throughout
+
+JSON/STRUCTURED DATA FORMAT
+Primary indicators:
+- Contains curly braces with key-value pairs
+- Contains proper JSON syntax (quotes around keys, commas between items)
+- Contains nested data structures
+
+Secondary indicators:
+- Array notation with square brackets
+- Data type consistency (strings, numbers, booleans)
+- Proper escaping of special characters
+
+SIMPLE MESSAGE FORMAT
+Default classification when no other format is detected with confidence:
+- Short to medium length text without specific formatting
+- Conversational or informational in nature
+- Lacks formal structure of other formats
+- May contain questions, statements, or requests
+
+FORMAT CONFIDENCE SCORING
+- Email: Requires score of 3+ from primary indicators
+- Code: Requires code blocks OR 3+ programming keywords
+- List: Requires consistent bullet/number pattern across multiple lines
+- Chat: Requires consistent speaker attribution pattern
+- Thread: Requires quoted text with > character
+- Table: Requires pipe character grid structure
+- JSON: Requires proper JSON syntax with multiple key-value pairs
+- Simple Message: Default when no other format reaches confidence threshold

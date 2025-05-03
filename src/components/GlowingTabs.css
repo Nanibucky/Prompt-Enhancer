@@ -1,0 +1,43 @@
+/* GlowingTabs.css */
+.glowing-tabs-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+  background-color: hsl(var(--muted) / 0.3);
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
+}
+
+:root.dark .glowing-tabs-container {
+  background-color: hsl(var(--muted) / 0.1);
+}
+
+.glowing-tab {
+  position: relative;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-color: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.glowing-tab:hover:not(.active) {
+  background-color: hsl(var(--background) / 0.5);
+  color: hsl(var(--foreground));
+}
+
+.glowing-tab.active {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  /* The inline styles will handle the border and box-shadow */
+}
+
+:root.dark .glowing-tab.active {
+  background-color: hsl(var(--muted));
+}

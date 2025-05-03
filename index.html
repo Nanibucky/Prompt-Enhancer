@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>👻 prompt-scribe-enhance</title>
+    <meta name="description" content="The Prompt Enhancer" />
+    <meta name="author" content="Tharun" />
+
+    <meta property="og:title" content="👻 prompt-scribe-enhance" />
+    <meta property="og:description" content="The Prompt Enhancer" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://citizensociolinguistics.com/wp-content/uploads/2017/04/screen-shot-2017-04-17-at-12-28-04-pm.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👻</text></svg>">
+
+    <!-- Base URL for resolving relative URLs -->
+    <base href="./" />
+
+  </head>
+
+  <body>
+    <div id="root">Loading...</div>
+
+    <script>
+      console.log('Inline script executing...');
+      document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM content loaded from inline script');
+        console.log('Root element from inline script:', document.getElementById('root'));
+      });
+    </script>
+
+    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script>
+      console.log('About to load main.tsx script');
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      console.log('After loading main.tsx script');
+      // Check if the script loaded
+      setTimeout(() => {
+        console.log('Root element after timeout:', document.getElementById('root'));
+      }, 1000);
+    </script>
+
+    <script>
+      // Fallback content if React doesn't load
+      setTimeout(() => {
+        const root = document.getElementById('root');
+        if (root && root.innerHTML === 'Loading...') {
+          root.innerHTML = '<div style="padding: 20px;"><h1>Error Loading Application</h1><p>The React application failed to load. Please check the console for errors.</p></div>';
+        }
+      }, 5000);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 512 512" fill="none">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="248" fill="#4F46E5" />
+  
+  <!-- Wand Icon -->
+  <path d="M352 144L368 160M368 160L384 176M368 160L352 176M368 160L336 160M240 272L192 320M368 320L320 272M320 272C320 272 336 256 352 240C368 224 384 208 384 192C384 176 368 160 352 160C336 160 320 176 304 192C288 208 272 224 272 224M320 272L272 224M272 224L240 192M240 192L208 160M240 192L208 224M208 224L176 192M208 224L176 256M176 256L144 224M176 256L144 288" stroke="white" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Text Enhancement Lines -->
+  <path d="M144 352H368" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M176 384H336" stroke="white" stroke-width="16" stroke-linecap="round"/>
+  <path d="M208 416H304" stroke="white" stroke-width="16" stroke-linecap="round"/>
+</svg>

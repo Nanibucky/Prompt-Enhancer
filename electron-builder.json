@@ -1,0 +1,30 @@
+
+{
+  "appId": "com.example.prompt-enhancer",
+  "productName": "AI Prompt Enhancer",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "assets/**/*"
+  ],
+  "mac": {
+    "category": "public.app-category.productivity",
+    "icon": "assets/icon.svg"
+  },
+  "win": {
+    "icon": "assets/icon.svg",
+    "target": [
+      "nsis"
+    ]
+  },
+  "linux": {
+    "icon": "assets/icon.png",
+    "target": [
+      "AppImage"
+    ],
+    "category": "Utility"
+  }
+}
