@@ -7,6 +7,8 @@ interface EnhancementContextType {
   enhancedText: string | null;
   isLoading: boolean;
   selectedModel: string;
+  instructions: string;
+  setInstructions: (instructions: string) => void;
   handleRegenerate: (promptType: string) => void;
   handleConfirm: (text: string) => void;
   handleClose: () => void;
@@ -21,9 +23,37 @@ export function EnhancementProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>('gpt-3.5-turbo');
   const [currentPromptType, setCurrentPromptType] = useState<string>('general');
+  const [instructions, setInstructionsState] = useState<string>('');
 
   const { addToHistory } = usePrompts();
   const { toast } = useToast();
+
+  // Load and save instructions from electron store
+  useEffect(() => {
+    const loadInstructions = async () => {
+      try {
+        const savedInstructions = await window.api.getLastInstructions();
+        setInstructionsState(savedInstructions || '');
+      } catch (error) {
+        console.error('Failed to load instructions:', error);
+        // Fallback to localStorage for web mode
+        const savedInstructions = localStorage.getItem('last-instructions') || '';
+        setInstructionsState(savedInstructions);
+      }
+    };
+    loadInstructions();
+  }, []);
+
+  const setInstructions = async (newInstructions: string) => {
+    setInstructionsState(newInstructions);
+    try {
+      await window.api.setLastInstructions(newInstructions);
+    } catch (error) {
+      console.error('Failed to save instructions:', error);
+      // Fallback to localStorage for web mode
+      localStorage.setItem('last-instructions', newInstructions);
+    }
+  };
 
   useEffect(() => {
     // Load selected model
@@ -123,7 +153,7 @@ export function EnhancementProvider({ children }: { children: React.ReactNode })
 
     // The backend already handles these different modes with appropriate system prompts
     // This ensures the response changes based on the selected button
-    window.api.requestEnhancement(promptType, selectedModel, noCache);
+    window.api.requestEnhancement(promptType, selectedModel, noCache, instructions);
   };
 
   const handleConfirm = (text: string) => {
@@ -164,6 +194,8 @@ export function EnhancementProvider({ children }: { children: React.ReactNode })
       enhancedText,
       isLoading,
       selectedModel,
+      instructions,
+      setInstructions,
       handleRegenerate,
       handleConfirm,
       handleClose,

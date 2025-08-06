@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Enhancement popup methods
   getOriginalText: () => ipcRenderer.invoke('get-original-text'),
-  requestEnhancement: (promptType: string, modelId?: string) => ipcRenderer.send('request-enhancement', promptType, modelId),
+  requestEnhancement: (promptType: string, modelId?: string, noCache?: boolean, instructions?: string) => ipcRenderer.send('request-enhancement', promptType, modelId, noCache, instructions),
   confirmEnhancement: (text: string) => ipcRenderer.send('confirm-enhancement', text),
   onOriginalText: (callback: (text: string) => void) => {
     ipcRenderer.on('original-text', (_, text) => callback(text));
@@ -39,4 +39,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // Clipboard operations
   refreshClipboardText: () => ipcRenderer.send('refresh-clipboard-text'),
+
+  // Instructions storage
+  getLastInstructions: () => ipcRenderer.invoke('get-last-instructions'),
+  setLastInstructions: (instructions) => ipcRenderer.invoke('set-last-instructions', instructions),
 });

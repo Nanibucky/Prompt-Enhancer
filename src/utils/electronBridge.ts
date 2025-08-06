@@ -34,8 +34,12 @@ interface ElectronBridgeAPI {
   getOriginalText: () => Promise<string>;
   refreshClipboardText: () => void;
 
+  // Instructions storage
+  getLastInstructions: () => Promise<string>;
+  setLastInstructions: (instructions: string) => Promise<boolean>;
+
   // Enhancement Operations
-  requestEnhancement: (promptType: string, modelId?: string) => void;
+  requestEnhancement: (promptType: string, modelId?: string, noCache?: boolean, instructions?: string) => void;
   confirmEnhancement: (text: string) => void;
 
   // Event Listeners
@@ -145,6 +149,13 @@ const createMockAPI = (): ElectronBridgeAPI => {
         // Find any registered callbacks for onOriginalText and call them
         console.log('Refreshing clipboard text in web mode:', text);
       });
+    },
+    getLastInstructions: async () => {
+      return localStorage.getItem('last-instructions') || '';
+    },
+    setLastInstructions: async (instructions: string) => {
+      localStorage.setItem('last-instructions', instructions);
+      return true;
     },
     requestEnhancement: () => {
       console.log('Enhancement requested, but not available in browser mode');

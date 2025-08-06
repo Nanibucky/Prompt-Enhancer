@@ -26,6 +26,8 @@ const EnhancementContent = () => {
     originalText,
     enhancedText,
     isLoading,
+    instructions,
+    setInstructions,
     handleClose,
     handleConfirm,
     handleRegenerate,
@@ -38,6 +40,8 @@ const EnhancementContent = () => {
         originalText={originalText}
         enhancedText={enhancedText}
         isLoading={isLoading}
+        instructions={instructions}
+        onInstructionsChange={setInstructions}
         onClose={handleClose}
         onConfirm={handleConfirm}
         onRegenerate={handleRegenerate}

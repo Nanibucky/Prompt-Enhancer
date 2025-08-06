@@ -10,13 +10,25 @@ class OpenAIService {
     systemPrompt: string,
     apiKey: string,
     model: OpenAIModel = 'gpt-3.5-turbo',
-    noCache: boolean = false
+    noCache: boolean = false,
+    instructions: string = ''
   ): Promise<string> {
     const openai = new OpenAI({
       apiKey,
     });
 
     try {
+      // Build the user message with optional instructions
+      let userMessage = originalText;
+      
+      if (instructions.trim()) {
+        userMessage = `Instructions: ${instructions.trim()}\n\nText to process:\n${originalText}`;
+      }
+      
+      if (noCache) {
+        userMessage += `\n\nIMPORTANT: This is a regeneration request. You MUST provide a completely different variation of the enhanced prompt than any previous version. Be creative and offer a distinctly different enhancement while maintaining the original meaning. Timestamp: ${Date.now()}`;
+      }
+
       const response = await openai.chat.completions.create({
         model,
         messages: [
@@ -26,9 +38,7 @@ class OpenAIService {
           },
           {
             role: 'user',
-            content: noCache
-              ? `${originalText}\n\nIMPORTANT: This is a regeneration request. You MUST provide a completely different variation of the enhanced prompt than any previous version. Be creative and offer a distinctly different enhancement while maintaining the original meaning. Timestamp: ${Date.now()}`
-              : `${originalText}`,
+            content: userMessage,
           },
         ],
         max_tokens: 500,

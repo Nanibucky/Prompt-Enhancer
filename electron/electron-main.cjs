@@ -352,6 +352,16 @@ function createWindow() {
     event.sender.send('original-text', latestText);
   });
 
+  // Handle instructions storage
+  ipcMain.handle('get-last-instructions', () => {
+    return store.get('last-instructions', '');
+  });
+
+  ipcMain.handle('set-last-instructions', (_, instructions) => {
+    store.set('last-instructions', instructions);
+    return true;
+  });
+
   // Setup the prompt enhancer
   setupPromptEnhancer(mainWindow);
 
