@@ -192,10 +192,17 @@ export const setupPromptEnhancer = (mainWindow: BrowserWindow) => {
     const storedOriginalText = originalText;
 
     // Create a specific listener for this window instance
-    const handleRequestEnhancement = async (event: Electron.IpcMainEvent, promptType: string, modelId?: string, noCache: boolean = false) => {
+    const handleRequestEnhancement = async (event: Electron.IpcMainEvent, promptType: string, modelId?: string) => {
       // Only process events from this window
       if (event.sender.id !== enhancementWindow.webContents.id) {
         return;
+      }
+
+      // Parse nocache parameter from promptType if present
+      let noCache = false;
+      if (promptType.includes('?nocache=true')) {
+        noCache = true;
+        promptType = promptType.split('?')[0]; // Remove the parameter
       }
 
       console.log('Processing request-enhancement with promptType:', promptType, 'modelId:', modelId, 'noCache:', noCache);

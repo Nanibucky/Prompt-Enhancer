@@ -80,7 +80,7 @@ contextBridge.exposeInMainWorld('api', {
   // Enhancement popup methods
   getOriginalText: () => ipcRenderer.invoke('get-original-text'),
   refreshClipboardText: () => ipcRenderer.send('refresh-clipboard-text'),
-  requestEnhancement: (promptType, modelId, noCache = false) => ipcRenderer.send('request-enhancement', promptType, modelId, noCache),
+  requestEnhancement: (promptType, modelId) => ipcRenderer.send('request-enhancement', promptType, modelId),
   confirmEnhancement: (text) => ipcRenderer.send('confirm-enhancement', text),
   onOriginalText: (callback) => {
     ipcRenderer.on('original-text', (_, text) => callback(text));

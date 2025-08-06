@@ -146,8 +146,8 @@ const createMockAPI = (): ElectronBridgeAPI => {
         console.log('Refreshing clipboard text in web mode:', text);
       });
     },
-    requestEnhancement: () => {
-      console.log('Enhancement requested, but not available in browser mode');
+    requestEnhancement: (promptType: string, modelId?: string) => {
+      console.log(`Enhancement requested for ${promptType} with model ${modelId}, but not available in browser mode`);
       alert('Enhancement feature is only available in the desktop app');
     },
     confirmEnhancement: (text) => {
@@ -191,7 +191,7 @@ const createMockAPI = (): ElectronBridgeAPI => {
 
 // Export the API - either the real Electron API or our mock
 export const electronAPI: ElectronBridgeAPI = isElectron()
-  ? (window as any).api
+  ? (window as typeof window & { api: ElectronBridgeAPI }).api
   : createMockAPI();
 
 // Export a utility to check if we're in Electron
