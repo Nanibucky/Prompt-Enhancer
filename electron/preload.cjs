@@ -77,10 +77,13 @@ contextBridge.exposeInMainWorld('api', {
   setKeyboardShortcut: (shortcut) => ipcRenderer.invoke('set-keyboard-shortcut', shortcut),
   resetKeyboardShortcut: () => ipcRenderer.invoke('reset-keyboard-shortcut'),
 
-  // Enhancement popup methods
-  getOriginalText: () => ipcRenderer.invoke('get-original-text'),
+  // Clipboard operations
   refreshClipboardText: () => ipcRenderer.send('refresh-clipboard-text'),
-  requestEnhancement: (promptType, modelId, noCache = false) => ipcRenderer.send('request-enhancement', promptType, modelId, noCache),
+
+  // Instructions storage
+  getLastInstructions: () => ipcRenderer.invoke('get-last-instructions'),
+  setLastInstructions: (instructions) => ipcRenderer.invoke('set-last-instructions', instructions),
+  requestEnhancement: (promptType, modelId, noCache = false, instructions = '') => ipcRenderer.send('request-enhancement', promptType, modelId, noCache, instructions),
   confirmEnhancement: (text) => ipcRenderer.send('confirm-enhancement', text),
   onOriginalText: (callback) => {
     ipcRenderer.on('original-text', (_, text) => callback(text));

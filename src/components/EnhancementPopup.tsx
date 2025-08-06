@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import GlowingTabs from "@/components/GlowingTabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PromptHistory from "@/components/PromptHistory";
@@ -18,6 +19,8 @@ interface EnhancementPopupProps {
   originalText: string;
   enhancedText: string | null;
   isLoading: boolean;
+  instructions: string;
+  onInstructionsChange: (instructions: string) => void;
   onClose: () => void;
   onConfirm: (text: string) => void;
   onRegenerate: (promptType: string) => void;
@@ -28,6 +31,8 @@ const EnhancementPopup: React.FC<EnhancementPopupProps> = ({
   originalText,
   enhancedText,
   isLoading,
+  instructions,
+  onInstructionsChange,
   onClose,
   onConfirm,
   onRegenerate,
@@ -176,6 +181,17 @@ const EnhancementPopup: React.FC<EnhancementPopupProps> = ({
             <div className="w-[70px]"></div> {/* Spacer for balance */}
           </div>
         </CardHeader>
+
+        {/* Instructions Input */}
+        <div className="px-6 pb-4">
+          <Textarea
+            placeholder="Optional: Enter specific instructions for processing the text (e.g., 'Reply positively to this job offer', 'Summarize in bullet points')"
+            value={instructions}
+            onChange={(e) => onInstructionsChange(e.target.value)}
+            className="min-h-[60px] text-sm"
+            disabled={isLoading}
+          />
+        </div>
 
         {/* History Dialog */}
         <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>

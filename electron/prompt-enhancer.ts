@@ -192,13 +192,13 @@ export const setupPromptEnhancer = (mainWindow: BrowserWindow) => {
     const storedOriginalText = originalText;
 
     // Create a specific listener for this window instance
-    const handleRequestEnhancement = async (event: Electron.IpcMainEvent, promptType: string, modelId?: string, noCache: boolean = false) => {
+    const handleRequestEnhancement = async (event: Electron.IpcMainEvent, promptType: string, modelId?: string, noCache: boolean = false, instructions: string = '') => {
       // Only process events from this window
       if (event.sender.id !== enhancementWindow.webContents.id) {
         return;
       }
 
-      console.log('Processing request-enhancement with promptType:', promptType, 'modelId:', modelId, 'noCache:', noCache);
+      console.log('Processing request-enhancement with promptType:', promptType, 'modelId:', modelId, 'noCache:', noCache, 'instructions:', instructions ? `"${instructions.substring(0, 50)}..."` : 'none');
       try {
         const apiKey = store.get('openai-api-key') as string;
         if (!apiKey) {
@@ -215,9 +215,11 @@ export const setupPromptEnhancer = (mainWindow: BrowserWindow) => {
 
         console.log('Using promptType:', promptType);
 
-        // Store the prompt type for debugging
-        store.set('last-prompt-type', promptType);
-        console.log('Stored last prompt type:', promptType);
+        // Store the current instructions for debugging
+        if (instructions) {
+          store.set('last-instructions', instructions);
+          console.log('Stored last instructions:', instructions.substring(0, 50) + '...');
+        }
 
         // Log the current clipboard text for debugging
         console.log('Current clipboard text length:', storedOriginalText.length);
@@ -251,7 +253,7 @@ export const setupPromptEnhancer = (mainWindow: BrowserWindow) => {
         const forceNoCache = noCache || promptType.includes('agent') || promptType.includes('general');
         console.log('Using forceNoCache:', forceNoCache);
 
-        const enhancedText = await openai.enhancePrompt(storedOriginalText, systemPrompt, apiKey, selectedModel, forceNoCache);
+        const enhancedText = await openai.enhancePrompt(storedOriginalText, systemPrompt, apiKey, selectedModel, forceNoCache, instructions);
         enhancementWindow.webContents.send('enhancement-result', enhancedText);
       } catch (error) {
         enhancementWindow.webContents.send('enhancement-error', error.message);
