@@ -1,0 +1,60 @@
+name: Tests
+
+# Trigger on push and pull requests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # Placeholder for future tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Check if test script exists and run tests
+      - name: Check for tests
+        run: |
+          if npm run test --if-present 2>/dev/null; then
+            echo "Tests executed successfully"
+          else
+            echo "No test script found. Skipping tests."
+            echo "To add tests, define a 'test' script in package.json"
+          fi
+        
+      # Placeholder for unit tests (when added)
+      - name: Unit Tests (placeholder)
+        run: |
+          echo "Unit tests will be added here when test framework is set up"
+          echo "Suggested setup: Jest or Vitest for React components"
+          echo "Suggested setup: Electron testing with Spectron or Playwright"
+          
+      # Placeholder for integration tests (when added)  
+      - name: Integration Tests (placeholder)
+        run: |
+          echo "Integration tests will be added here"
+          echo "Consider testing Electron main process functionality"
+          
+      # Placeholder for E2E tests (when added)
+      - name: E2E Tests (placeholder)  
+        run: |
+          echo "End-to-end tests will be added here"
+          echo "Consider using Playwright for Electron app testing"

@@ -1,0 +1,120 @@
+name: Build & Release
+
+# Trigger on releases and tags
+on:
+  release:
+    types: [created]
+  push:
+    tags:
+      - 'v*'
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  # Build Electron application for multiple platforms
+  build-electron:
+    name: Build Electron App
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: macos-latest
+            platform: mac
+            arch: x64
+    
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Build the Vite project first
+      - name: Build Vite project
+        run: npm run build
+        
+      # Compile TypeScript for Electron
+      - name: Compile Electron TypeScript
+        run: npx tsc -p electron/tsconfig.json
+        
+      # Build Electron app for Linux
+      - name: Build Electron (Linux)
+        if: matrix.platform == 'linux'
+        run: npm run electron:build -- --linux
+        
+      # Build Electron app for Windows
+      - name: Build Electron (Windows)
+        if: matrix.platform == 'win'
+        run: npm run electron:build -- --win
+        
+      # Build Electron app for macOS
+      - name: Build Electron (macOS)
+        if: matrix.platform == 'mac'
+        run: npm run electron:build -- --mac
+        
+      # Upload build artifacts
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/
+          retention-days: 30
+          
+      # Upload to release if this is a release event
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job to create a development build artifact
+  build-dev:
+    name: Development Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Build the development version
+      - name: Build development
+        run: npm run build:dev
+        
+      # Upload development build
+      - name: Upload development build
+        uses: actions/upload-artifact@v4
+        with:
+          name: development-build
+          path: dist/
+          retention-days: 7

@@ -1,0 +1,60 @@
+# Dependabot configuration for automated dependency updates
+# See: https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  # Enable npm dependency updates
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    # Limit the number of open PRs
+    open-pull-requests-limit: 5
+    # Group dependency updates by type
+    groups:
+      # Group development dependencies
+      development-dependencies:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "typescript*"
+          - "@typescript-eslint/*"
+          - "vite*"
+          - "@vitejs/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group React ecosystem updates
+      react-ecosystem:
+        patterns:
+          - "react*"
+          - "@radix-ui/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group Electron updates
+      electron-ecosystem:
+        patterns:
+          - "electron*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Automatically approve and merge minor and patch updates
+    # (Note: This requires additional GitHub settings to be configured)
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+
+  # Enable GitHub Actions workflow updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

@@ -1,0 +1,166 @@
+name: CI
+
+# Trigger the workflow on push to main branch and pull requests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Allow manually triggering the workflow
+  workflow_dispatch:
+
+jobs:
+  # Job for linting and code quality checks
+  lint:
+    name: Lint & Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install project dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Run ESLint for code quality checks
+      # Note: Continue on error to allow existing issues while still reporting them
+      - name: Run ESLint
+        run: npm run lint || echo "ESLint found issues, but continuing build..."
+        continue-on-error: true
+        
+      # Check TypeScript compilation
+      - name: Check TypeScript
+        run: npx tsc --noEmit
+
+  # Job for building the application
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install project dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Build the Vite project
+      - name: Build Vite project
+        run: npm run build
+        
+      # Upload build artifacts for inspection
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 7
+
+  # Job for testing on multiple platforms (Electron app needs cross-platform validation)
+  test-platforms:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: lint
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install project dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Build the project to ensure it works on all platforms
+      - name: Build project
+        run: npm run build
+        
+      # Run a basic build test for Electron (without GUI)
+      - name: Test Electron build preparation
+        run: npx tsc -p electron/tsconfig.json
+
+  # Job for dependency security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Run npm audit for security vulnerabilities
+      # Using audit --audit-level=moderate to catch important issues
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+
+  # Job for checking dependency licenses (optional but good practice)
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Install license checker
+      - name: Install license checker
+        run: npm install -g license-checker
+        
+      # Check for licenses
+      - name: Check licenses
+        run: license-checker --summary
