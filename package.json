@@ -52,7 +52,7 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "electron-localshortcut": "^3.2.1",
-    "electron-store": "^10.0.1",
+    "electron-store": "^10.1.0",
     "embla-carousel-react": "^8.3.0",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
