@@ -3,6 +3,9 @@
 <div align="center">
   <p>Transform simple queries into powerful AI prompts with a keyboard shortcut</p>
 
+  [![CI](https://github.com/Nanibucky/Prompt-Enhancer/actions/workflows/ci.yml/badge.svg)](https://github.com/Nanibucky/Prompt-Enhancer/actions/workflows/ci.yml)
+  [![Build & Release](https://github.com/Nanibucky/Prompt-Enhancer/actions/workflows/build.yml/badge.svg)](https://github.com/Nanibucky/Prompt-Enhancer/actions/workflows/build.yml)
+  [![Tests](https://github.com/Nanibucky/Prompt-Enhancer/actions/workflows/test.yml/badge.svg)](https://github.com/Nanibucky/Prompt-Enhancer/actions/workflows/test.yml)
   ![License](https://img.shields.io/badge/license-MIT-blue)
   ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
   ![Version](https://img.shields.io/badge/version-1.0.0-green)
@@ -176,6 +179,14 @@ Application logs can be found in:
 - **Backend**: Electron, Node.js
 - **Build Tools**: Vite, Electron Builder
 
+### CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+- **🔄 Continuous Integration**: Automated linting, building, and testing on every push and PR
+- **🚀 Build & Release**: Cross-platform Electron builds for Windows, macOS, and Linux
+- **🔍 Security Scanning**: CodeQL analysis and dependency vulnerability checks
+- **📦 Dependency Management**: Automated dependency updates via Dependabot
 
 ### Building from Source
 
@@ -194,6 +205,10 @@ Application logs can be found in:
    ```bash
    npm run electron:dev
    ```
+
+### Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
 
 ## 📊 Performance Metrics
 
