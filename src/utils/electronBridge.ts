@@ -35,7 +35,7 @@ interface ElectronBridgeAPI {
   refreshClipboardText: () => void;
 
   // Enhancement Operations
-  requestEnhancement: (promptType: string, modelId?: string) => void;
+  requestEnhancement: (promptType: string, modelId?: string, noCache?: boolean) => void;
   confirmEnhancement: (text: string) => void;
 
   // Event Listeners
@@ -146,7 +146,8 @@ const createMockAPI = (): ElectronBridgeAPI => {
         console.log('Refreshing clipboard text in web mode:', text);
       });
     },
-    requestEnhancement: () => {
+    requestEnhancement: (promptType: string, modelId?: string, noCache?: boolean) => {
+      console.log('Enhancement requested with params:', { promptType, modelId, noCache });
       console.log('Enhancement requested, but not available in browser mode');
       alert('Enhancement feature is only available in the desktop app');
     },
@@ -191,7 +192,7 @@ const createMockAPI = (): ElectronBridgeAPI => {
 
 // Export the API - either the real Electron API or our mock
 export const electronAPI: ElectronBridgeAPI = isElectron()
-  ? (window as any).api
+  ? (window as Window & { api: ElectronBridgeAPI }).api
   : createMockAPI();
 
 // Export a utility to check if we're in Electron

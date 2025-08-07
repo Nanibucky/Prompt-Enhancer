@@ -5,15 +5,15 @@
   "type": "module",
   "description": "An Electron desktop application that enhances your prompts using OpenAI's GPT-4 model",
   "author": "Tharun",
-  "main": "electron/dist/main.js",
+  "main": "electron/electron-main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron:dev": "npm run build && cross-env NODE_ENV=development concurrently \"tsc -p electron/tsconfig.json -w\" \"electron electron/electron-main.cjs\"",
-    "electron:build": "vite build && tsc -p electron/tsconfig.json && electron-builder",
+    "electron:dev": "npm run build && cross-env NODE_ENV=development concurrently \"npm run dev\" \"electron electron/electron-main.cjs\"",
+    "electron:build": "vite build && electron-builder",
     "electron:package:mac": "npm run electron:build && electron-builder --mac",
     "electron:package:win": "npm run electron:build && electron-builder --win"
   },

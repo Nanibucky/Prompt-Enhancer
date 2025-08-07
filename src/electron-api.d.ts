@@ -20,7 +20,7 @@ interface ElectronAPI {
 
   // Enhancement popup methods
   getOriginalText: () => Promise<string>;
-  requestEnhancement: (promptType: string, modelId?: string) => void;
+  requestEnhancement: (promptType: string, modelId?: string, noCache?: boolean) => void;
   confirmEnhancement: (text: string) => void;
   onOriginalText: (callback: (text: string) => void) => () => void;
   onEnhancementResult: (callback: (text: string) => void) => () => void;
