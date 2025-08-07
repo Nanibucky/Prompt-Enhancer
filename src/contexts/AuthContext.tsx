@@ -24,10 +24,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
-        setAuthState({
-          user: JSON.parse(savedUser),
-          isAuthenticated: true,
-        });
+        const parsedUser = JSON.parse(savedUser);
+        // Validate that the parsed user has the expected structure
+        if (parsedUser && typeof parsedUser === 'object' && 
+            typeof parsedUser.email === 'string' && 
+            typeof parsedUser.password === 'string') {
+          setAuthState({
+            user: parsedUser,
+            isAuthenticated: true,
+          });
+        } else {
+          console.warn('Invalid user data structure in localStorage, clearing it');
+          localStorage.removeItem('user');
+        }
       }
     } catch (error) {
       console.error('Error loading auth state:', error);

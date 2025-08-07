@@ -33,6 +33,8 @@ export function EnhancementProvider({ children }: { children: React.ReactNode })
         setSelectedModel(model);
       } catch (error) {
         console.error('Failed to load model settings:', error);
+        // Set default model if loading fails
+        setSelectedModel('gpt-3.5-turbo');
       }
     };
 
@@ -123,21 +125,32 @@ export function EnhancementProvider({ children }: { children: React.ReactNode })
 
     // The backend already handles these different modes with appropriate system prompts
     // This ensures the response changes based on the selected button
-    window.api.requestEnhancement(promptType, selectedModel, noCache);
+    // Pass the noCache parameter as part of the promptType if needed
+    const enhancedPromptType = noCache ? `${promptType}?nocache=true` : promptType;
+    window.api.requestEnhancement(enhancedPromptType, selectedModel);
   };
 
   const handleConfirm = (text: string) => {
-    // First, copy the text to clipboard
-    navigator.clipboard.writeText(text);
-    console.log('Text copied to clipboard in renderer process');
+    try {
+      // First, copy the text to clipboard
+      navigator.clipboard.writeText(text);
+      console.log('Text copied to clipboard in renderer process');
 
-    // Then send the confirmation to the main process for auto-paste
-    // The main process will handle closing the window after the paste attempt
-    window.api.confirmEnhancement(text);
+      // Then send the confirmation to the main process for auto-paste
+      // The main process will handle closing the window after the paste attempt
+      window.api.confirmEnhancement(text);
 
-    // Don't close the window here - the main process will handle it
-    // This allows the main process to hide the window first, then paste, then close
-    // window.close();
+      // Don't close the window here - the main process will handle it
+      // This allows the main process to hide the window first, then paste, then close
+      // window.close();
+    } catch (error) {
+      console.error('Error confirming enhancement:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to copy text to clipboard',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleClose = () => {
@@ -145,17 +158,26 @@ export function EnhancementProvider({ children }: { children: React.ReactNode })
   };
 
   const handleRefreshText = () => {
-    // Request the latest clipboard content from the main process
-    window.api.refreshClipboardText();
+    try {
+      // Request the latest clipboard content from the main process
+      window.api.refreshClipboardText();
 
-    // Listen for the refreshed text
-    const refreshListener = window.api.onOriginalText((text) => {
-      // Always update the original text with the clipboard content
-      console.log('Refreshed text from clipboard:', text);
-      setOriginalText(text);
-      // Remove this listener after receiving the text
-      refreshListener();
-    });
+      // Listen for the refreshed text
+      const refreshListener = window.api.onOriginalText((text) => {
+        // Always update the original text with the clipboard content
+        console.log('Refreshed text from clipboard:', text);
+        setOriginalText(text);
+        // Remove this listener after receiving the text
+        refreshListener();
+      });
+    } catch (error) {
+      console.error('Error refreshing clipboard text:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to refresh clipboard text',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

@@ -32,7 +32,7 @@ const KeyboardShortcutConfig = () => {
     if (!recording) return;
     e.preventDefault();
 
-    let keys = [];
+    const keys = [];
 
     // Add modifiers
     if (e.ctrlKey) keys.push("CommandOrControl");
