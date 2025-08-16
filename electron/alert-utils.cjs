@@ -14,49 +14,68 @@ const getLoginAlertShowing = () => loginAlertShowing;
 
 // Helper function to show login alert
 function showLoginAlert(mainWindow) {
-  if (!mainWindow) return;
+  if (!mainWindow) {
+    console.error('showLoginAlert called with no mainWindow');
+    return;
+  }
+
+  console.log('ALERT: showLoginAlert called with mainWindow:', mainWindow.id);
 
   // Force close any existing login alert window
   if (loginAlertShowing) {
-    console.log('Login alert flag was set, forcing a new alert');
+    console.log('ALERT: Login alert flag was set, forcing a new alert');
     loginAlertShowing = false;
   }
 
-  // If the main window is already visible, bring it to front AND show the login alert
-  if (mainWindow.isVisible()) {
-    console.log('Main window visible, bringing to front and showing login alert');
-    mainWindow.focus();
-    // Send a message to the renderer to navigate to login if needed
-    mainWindow.webContents.send('navigate-to-login');
-  }
-
-  // Always show the login alert
+  // Set the flag immediately to prevent multiple alerts
   loginAlertShowing = true;
 
+  // ALWAYS show the main window and bring it to front
+  console.log('ALERT: Showing main window and bringing to front for login alert');
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+  mainWindow.focus();
+  mainWindow.moveTop();
+
+  // Get the selected provider to determine which page to navigate to
+  const selectedProvider = global.store ? global.store.get('selected-provider', 'openai') : 'openai';
+  console.log(`ALERT: Selected provider for navigation: ${selectedProvider}`);
+
   // Create a small notification window - make it non-modal so it doesn't block the main window
+  // but set show:true to make it visible immediately
   const notificationWindow = new BrowserWindow({
-    width: 380,
-    height: 250,
-    show: false,
+    width: 400,
+    height: 280,
+    show: true, // Show immediately
     parent: mainWindow,
-    modal: false, // Changed from true to false to make it non-modal
+    modal: false,
     frame: true,
     resizable: false,
     alwaysOnTop: true,
     backgroundColor: '#ffffff',
     titleBarStyle: 'hiddenInset',
+    center: true, // Center the window on the screen
+    skipTaskbar: false, // Show in taskbar to make it more visible
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     }
   });
 
+  // Get the selected provider to customize the message
+  // Using the selectedProvider variable already declared above
+  const providerName = selectedProvider === 'gemini' ? 'Gemini' : 'OpenAI';
+  const providerColor = selectedProvider === 'gemini' ? '#1a73e8' : '#4f46e5'; // Blue for Gemini, Purple for OpenAI
+  const gradientStart = selectedProvider === 'gemini' ? '#1a73e8' : '#6366f1';
+  const gradientEnd = selectedProvider === 'gemini' ? '#34a853' : '#8b5cf6';
+
   // Create HTML content for the notification
   const notificationContent = `
   <!DOCTYPE html>
   <html>
   <head>
-    <title>Login Required</title>
+    <title>API Key Required</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
@@ -64,7 +83,7 @@ function showLoginAlert(mainWindow) {
         font-family: 'Poppins', sans-serif;
         padding: 0;
         text-align: center;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: linear-gradient(135deg, ${gradientStart}, ${gradientEnd});
         color: #333;
         margin: 0;
         display: flex;
@@ -88,7 +107,7 @@ function showLoginAlert(mainWindow) {
         to { opacity: 1; transform: translateY(0); }
       }
       h2 {
-        color: #4f46e5;
+        color: ${providerColor};
         margin-top: 0;
         font-size: 20px;
         font-weight: 600;
@@ -108,7 +127,7 @@ function showLoginAlert(mainWindow) {
         margin-top: 15px;
       }
       button {
-        background: linear-gradient(to right, #4f46e5, #7c3aed);
+        background: linear-gradient(to right, ${gradientStart}, ${gradientEnd});
         color: white;
         padding: 10px 18px;
         border: none;
@@ -117,13 +136,14 @@ function showLoginAlert(mainWindow) {
         font-size: 13px;
         font-weight: 500;
         transition: all 0.3s ease;
-        box-shadow: 0 3px 8px rgba(79, 70, 229, 0.3);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
         flex: 1;
       }
       button:hover {
-        background: linear-gradient(to right, #4338ca, #6d28d9);
+        background: linear-gradient(to right, ${gradientStart}, ${gradientEnd});
+        filter: brightness(0.9);
         transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
       }
       button.secondary {
         background: linear-gradient(to right, #9ca3af, #6b7280);
@@ -144,16 +164,17 @@ function showLoginAlert(mainWindow) {
         100% { transform: scale(1); }
       }
       .highlight {
-        color: #4f46e5;
+        color: ${providerColor};
         font-weight: 600;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <div class="icon">🔐</div>
-      <h2>API Key Required</h2>
-      <p>Please <span class="highlight">set your API key</span> to use the enhancement feature.</p>
+      <div class="icon">⚠️</div>
+      <h2>Login Required</h2>
+      <p>Please <span class="highlight">set your ${providerName} API key</span> to use the enhancement feature.</p>
+      <p style="color: #e11d48; font-weight: 500;">You must log in before using the hotkey!</p>
       <div class="buttons">
         <button onclick="window.close()">OK</button>
       </div>
@@ -177,25 +198,58 @@ function showLoginAlert(mainWindow) {
   const loginNotificationPath = path.join(app.getPath('temp'), 'login-notification.html');
   fs.writeFileSync(loginNotificationPath, notificationContent);
 
+  // Set the window to be always on top with highest priority before loading content
+  notificationWindow.setAlwaysOnTop(true, 'screen-saver');
+
   // Load the notification content
   notificationWindow.loadFile(loginNotificationPath);
 
-  // Show the window when ready
+  console.log('ALERT: Login notification window created and content loaded');
+
+  // Make sure the window is visible and focused
+  notificationWindow.show();
+  notificationWindow.focus();
+  notificationWindow.moveTop();
+
+  // Double-check visibility immediately
+  setTimeout(() => {
+    if (!notificationWindow.isDestroyed()) {
+      console.log('ALERT: Reinforcing login alert window visibility (first check)');
+      notificationWindow.show();
+      notificationWindow.focus();
+      notificationWindow.setAlwaysOnTop(true, 'screen-saver');
+      notificationWindow.moveTop();
+    }
+  }, 100);
+
+  // Check again after a slightly longer delay
+  setTimeout(() => {
+    if (!notificationWindow.isDestroyed()) {
+      console.log('ALERT: Reinforcing login alert window visibility (second check)');
+      notificationWindow.show();
+      notificationWindow.focus();
+      notificationWindow.setAlwaysOnTop(true, 'screen-saver');
+      notificationWindow.moveTop();
+    }
+  }, 500);
+
+  // Also handle the ready-to-show event as a backup
   notificationWindow.once('ready-to-show', () => {
-    notificationWindow.show();
-    notificationWindow.focus();
+    console.log('ALERT: Login notification window ready to show');
+    if (!notificationWindow.isDestroyed()) {
+      notificationWindow.show();
+      notificationWindow.focus();
+      notificationWindow.setAlwaysOnTop(true, 'screen-saver');
+      notificationWindow.moveTop();
+    }
 
-    // Ensure the window is always on top
-    notificationWindow.setAlwaysOnTop(true, 'floating');
-    notificationWindow.moveTop();
-
-    // Set a timeout to automatically close the window after 30 seconds
+    // Set a timeout to automatically close the window after 60 seconds
     // This prevents the window from staying open indefinitely if the user doesn't interact with it
     setTimeout(() => {
       if (!notificationWindow.isDestroyed()) {
         notificationWindow.close();
       }
-    }, 30000);
+    }, 60000); // 60 seconds to give user plenty of time to notice
   });
 
   // Reset the flag when the window is closed
@@ -204,15 +258,52 @@ function showLoginAlert(mainWindow) {
     loginAlertShowing = false;
   });
 
-  // Handle window blur event - close the window when it loses focus
+  // Handle window blur event - don't close immediately to give user time to notice
   notificationWindow.on('blur', () => {
-    // Small delay to allow for button clicks to register
+    console.log('ALERT: Login notification window lost focus');
+
+    // Keep the window visible for a few seconds after losing focus
+    // This gives the user more time to notice the alert
     setTimeout(() => {
       if (!notificationWindow.isDestroyed()) {
-        notificationWindow.close();
+        console.log('ALERT: Bringing login alert window back to focus');
+        // Bring window back to focus one more time to ensure user sees it
+        notificationWindow.setAlwaysOnTop(true, 'screen-saver');
+        notificationWindow.show();
+        notificationWindow.focus();
+        notificationWindow.moveTop();
+
+        // Then close after a longer delay
+        setTimeout(() => {
+          if (!notificationWindow.isDestroyed()) {
+            console.log('ALERT: Closing login alert window after delay');
+            notificationWindow.close();
+          }
+        }, 5000); // Close 5 seconds after bringing back to focus (increased from 3s)
       }
-    }, 100);
+    }, 3000); // Wait 3 seconds after blur before bringing back to focus (increased from 2s)
   });
+
+  // Send navigation message to main window after a delay to ensure alert is shown first
+  setTimeout(() => {
+    try {
+      if (selectedProvider === 'gemini') {
+        console.log('ALERT: Navigating to setup page for Gemini API key');
+        mainWindow.webContents.send('navigate-to-setup');
+      } else {
+        console.log('ALERT: Navigating to login page for OpenAI');
+        mainWindow.webContents.send('navigate-to-login');
+      }
+    } catch (error) {
+      console.error('ALERT: Error sending navigation message:', error);
+      // Fallback to login page if navigation fails
+      try {
+        mainWindow.webContents.send('navigate-to-login');
+      } catch (fallbackError) {
+        console.error('ALERT: Error sending fallback navigation message:', fallbackError);
+      }
+    }
+  }, 1000); // Wait 1 second before navigating to ensure alert is shown first
 }
 
 // Helper function to show empty text alert

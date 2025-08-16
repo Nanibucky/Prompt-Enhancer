@@ -94,29 +94,52 @@ function formatEnhancementError(error) {
   // Log the full error details for debugging
   console.error('Enhancement error details:', debugInfo);
 
+  // Check if this is a Gemini API error
+  const isGeminiError = error.message && (
+    error.message.includes('GoogleGenerativeAI') ||
+    error.message.includes('generativelanguage.googleapis.com')
+  );
+
   // Format user-friendly error message based on error type
-  if (error.status === 401) {
-    errorMessage += 'Invalid API key. Please check your OpenAI API key and try again.';
-  } else if (error.status === 429) {
-    errorMessage += 'Rate limit exceeded. Please try again later or check your OpenAI account limits.';
-  } else if (error.status === 500) {
-    errorMessage += 'OpenAI server error. Please try again later.';
-  } else if (error.status === 503) {
-    errorMessage += 'OpenAI service is temporarily unavailable. Please try again in a few minutes.';
-  } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
-    errorMessage += 'Network connection error. Please check your internet connection.';
-  } else if (error.type === 'invalid_request_error') {
-    errorMessage += `Invalid request: ${error.message || 'Please check your inputs and try again.'}`;
-  } else if (error.message && error.message.includes('API key')) {
-    errorMessage += 'API key issue. Please check your OpenAI API key in settings.';
-  } else if (error.message) {
-    // Clean up common OpenAI error messages for better user experience
-    let cleanMessage = error.message
-      .replace(/Error: OpenAI: /g, '')
-      .replace(/\((?:status code|Status code|Request ID): [^)]+\)/g, '');
-    errorMessage += cleanMessage;
+  if (isGeminiError) {
+    // Handle Gemini-specific errors
+    if (error.message.includes('429 Too Many Requests') || error.message.includes('exceeded your current quota')) {
+      errorMessage += 'Gemini API rate limit exceeded. Please try again later or switch to OpenAI in settings. You can also upgrade your Google AI Studio plan for higher limits.';
+    } else if (error.message.includes('401 Unauthorized') || error.message.includes('403 Forbidden')) {
+      errorMessage += 'Invalid Gemini API key. Please check your Gemini API key in settings.';
+    } else if (error.message.includes('500 ') || error.message.includes('503 ')) {
+      errorMessage += 'Gemini API server error. Please try again later or switch to OpenAI in settings.';
+    } else if (error.message.includes('not found for API version')) {
+      errorMessage += 'Invalid Gemini model specified. Please select a different model in settings.';
+    } else {
+      // Generic Gemini error
+      errorMessage += 'Gemini API error: ' + error.message.replace(/\[GoogleGenerativeAI Error\]:\s*/g, '');
+    }
   } else {
-    errorMessage += 'Unexpected error occurred. Please try again.';
+    // Handle OpenAI and other errors
+    if (error.status === 401) {
+      errorMessage += 'Invalid API key. Please check your OpenAI API key and try again.';
+    } else if (error.status === 429) {
+      errorMessage += 'Rate limit exceeded. Please try again later or check your OpenAI account limits.';
+    } else if (error.status === 500) {
+      errorMessage += 'OpenAI server error. Please try again later.';
+    } else if (error.status === 503) {
+      errorMessage += 'OpenAI service is temporarily unavailable. Please try again in a few minutes.';
+    } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+      errorMessage += 'Network connection error. Please check your internet connection.';
+    } else if (error.type === 'invalid_request_error') {
+      errorMessage += `Invalid request: ${error.message || 'Please check your inputs and try again.'}`;
+    } else if (error.message && error.message.includes('API key')) {
+      errorMessage += 'API key issue. Please check your API key in settings.';
+    } else if (error.message) {
+      // Clean up common error messages for better user experience
+      let cleanMessage = error.message
+        .replace(/Error: OpenAI: /g, '')
+        .replace(/\((?:status code|Status code|Request ID): [^)]+\)/g, '');
+      errorMessage += cleanMessage;
+    } else {
+      errorMessage += 'Unexpected error occurred. Please try again.';
+    }
   }
 
   // Add debugging information to the console but not to the user-facing error
@@ -262,6 +285,82 @@ async function enhanceTextWithContext(text, apiKey, model = 'gpt-4', mode = 'gen
   try {
     console.log(`enhanceTextWithContext called with mode: ${mode}, noCache: ${noCache}`);
 
+    // CRITICAL: Double-check authentication before proceeding with any enhancement
+    // Get the selected provider
+    const selectedProvider = global.store.get('selected-provider', 'openai');
+    console.log('enhanceTextWithContext using provider:', selectedProvider);
+
+    // Validate API key before proceeding
+    let validApiKey;
+    if (selectedProvider === 'gemini') {
+      validApiKey = global.store.get('gemini-api-key', '');
+      console.log('Double-checking Gemini API key:', validApiKey ? 'Key exists' : 'No key found');
+
+      // Additional validation for Gemini API key
+      if (!validApiKey || validApiKey === 'undefined' || validApiKey === 'null' || validApiKey.trim() === '') {
+        console.error('Gemini API key not found or invalid in enhanceTextWithContext');
+
+        // Show login alert
+        const { showLoginAlert } = require('./alert-utils.cjs');
+        const { BrowserWindow } = require('electron');
+        const mainWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+
+        if (mainWindow) {
+          console.log('ENHANCE: Showing login alert for missing Gemini API key');
+
+          // Make sure the main window is visible and in front
+          if (!mainWindow.isVisible()) {
+            mainWindow.show();
+          }
+          mainWindow.focus();
+          mainWindow.moveTop();
+
+          console.log('ENHANCE: Main window is now visible and focused');
+
+          // ALWAYS show login alert first before doing anything else
+          // The navigation to setup page is now handled inside showLoginAlert with a delay
+          showLoginAlert(mainWindow);
+
+          console.log('ENHANCE: Login alert shown for Gemini');
+        }
+
+        throw new Error('Gemini API key not found. Please add your API key in settings.');
+      }
+    } else {
+      validApiKey = global.store.get('openai-api-key', '');
+      console.log('Double-checking OpenAI API key:', validApiKey ? 'Key exists' : 'No key found');
+
+      if (!validApiKey || validApiKey.trim() === '') {
+        console.error('OpenAI API key not found or invalid in enhanceTextWithContext');
+
+        // Show login alert
+        const { showLoginAlert } = require('./alert-utils.cjs');
+        const { BrowserWindow } = require('electron');
+        const mainWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+
+        if (mainWindow) {
+          console.log('ENHANCE: Showing login alert for missing OpenAI API key');
+
+          // Make sure the main window is visible and in front
+          if (!mainWindow.isVisible()) {
+            mainWindow.show();
+          }
+          mainWindow.focus();
+          mainWindow.moveTop();
+
+          console.log('ENHANCE: Main window is now visible and focused');
+
+          // ALWAYS show login alert first before doing anything else
+          // The navigation to setup page is now handled inside showLoginAlert with a delay
+          showLoginAlert(mainWindow);
+
+          console.log('ENHANCE: Login alert shown for OpenAI');
+        }
+
+        throw new Error('OpenAI API key not found. Please add your API key in settings.');
+      }
+    }
+
     // If in answer mode, generate a direct answer to the question/prompt
     if (mode === 'answer') {
       console.log('Answer mode selected - generating direct answer');
@@ -280,6 +379,52 @@ async function enhanceTextWithContext(text, apiKey, model = 'gpt-4', mode = 'gen
             {
               role: 'user',
               content: text
+            }
+          ],
+          max_tokens: 1000,
+          temperature: 0.7
+        });
+
+        return response.choices[0].message.content.trim();
+      });
+
+      return result;
+    }
+
+    // If in answer-with-instructions mode, generate a response based on the text and user instructions
+    if (mode === 'answer-with-instructions') {
+      console.log('Answer with instructions mode selected');
+
+      // The instructions should be passed as the fifth parameter
+      const instructions = arguments[4];
+
+      if (!instructions) {
+        console.error('No instructions provided for answer-with-instructions mode');
+        throw new Error('Instructions are required for this mode');
+      }
+
+      console.log('Using instructions:', instructions);
+
+      // Execute with retry logic
+      const result = await withRetry(async () => {
+        const openai = new OpenAI({ apiKey });
+
+        const response = await openai.chat.completions.create({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: `You are a helpful assistant that crafts responses based on specific user instructions.
+              You will be given:
+              1. A piece of text (like an email or message)
+              2. Instructions on how to respond to it
+
+              Your task is to generate a well-crafted response following those instructions precisely.
+              Be concise, professional, and natural in your response.`
+            },
+            {
+              role: 'user',
+              content: `TEXT TO RESPOND TO:\n${text}\n\nINSTRUCTIONS:\n${instructions}\n\nPlease write a response based on these instructions.`
             }
           ],
           max_tokens: 1000,
@@ -346,8 +491,10 @@ async function enhanceTextWithContext(text, apiKey, model = 'gpt-4', mode = 'gen
       const fullPrompt = `${systemPrompt}\n\nPlatform-Specific Guidelines:\n${guidelines}\n\nIMPORTANT: Preserve the original format and structure of the text. The detected format is '${analysis.context.format || 'text'}'. Do not convert simple messages into formal emails. Do not add unnecessary greetings or signatures if they weren't in the original. Maintain the original style, tone, and structure while improving the content.`;
 
       // Execute enhancement with retry logic
-      const result = await withRetry(async () => {
-        const openai = new OpenAI({ apiKey });
+      const enhancedResult = await withRetry(async () => {
+        // Get the selected provider
+        const selectedProvider = global.store.get('selected-provider', 'openai');
+        console.log('Using provider:', selectedProvider);
 
         // Different user prompts based on mode
         let userPrompt;
@@ -359,54 +506,155 @@ async function enhanceTextWithContext(text, apiKey, model = 'gpt-4', mode = 'gen
           console.log('Using general enhancement user prompt with format:', analysis.context.format || 'text');
         }
 
-        const response = await openai.chat.completions.create({
-          model,
-          messages: [
-            {
-              role: 'system',
-              content: fullPrompt,
-            },
-            {
-              role: 'user',
-              content: userPrompt,
-            },
-          ],
-          max_tokens: 500,
-          temperature: 0.7, // Balanced for consistency and creativity
-        });
+        // Use the appropriate API based on the provider
+        if (selectedProvider === 'gemini') {
+          // Use Gemini API
+          console.log('Using Gemini API with model:', model);
+          const { GoogleGenerativeAI } = require('@google/generative-ai');
+          const geminiApiKey = global.store.get('gemini-api-key', '');
 
-        let enhancedText = response.choices[0].message.content.trim();
+          // Additional validation for Gemini API key
+          if (!geminiApiKey || geminiApiKey === 'undefined' || geminiApiKey === 'null' || geminiApiKey.trim() === '') {
+            console.error('Gemini API key not found or invalid');
 
-        // Clean up format indicators and instruction text
-        enhancedText = enhancedText.replace(/^\[Enhanced Prompt\]\s*/i, '');
-        enhancedText = enhancedText.replace(/^\[Answer\]\s*/i, '');
-        enhancedText = enhancedText.replace(/^\[Enhanced Agent Prompt\]\s*/i, '');
-        enhancedText = enhancedText.replace(/^\[Greeting Protocol\]\s*/i, '');
-        enhancedText = enhancedText.replace(/^improved prompt:\s*/i, '');
-        enhancedText = enhancedText.replace(/^enhanced prompt:\s*/i, '');
-        enhancedText = enhancedText.replace(/^\[ENHANCED\]\s*/i, '');
-        enhancedText = enhancedText.replace(/^\[ANSWER\]\s*/i, '');
-        enhancedText = enhancedText.replace(/^\[AGENT_TASK\]\s*/i, '');
+            // Show login alert instead of just throwing an error
+            const { showLoginAlert } = require('./alert-utils.cjs');
+            const { BrowserWindow } = require('electron');
+            const mainWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
 
-        // Remove any comments or explanations that might be included
-        enhancedText = enhancedText.replace(/^Note:.*$/im, '');
-        enhancedText = enhancedText.replace(/^Comment:.*$/im, '');
-        enhancedText = enhancedText.replace(/^Explanation:.*$/im, '');
-        enhancedText = enhancedText.replace(/\n\s*Note:.*$/im, '');
-        enhancedText = enhancedText.replace(/\n\s*Comment:.*$/im, '');
-        enhancedText = enhancedText.replace(/\n\s*Explanation:.*$/im, '');
+            if (mainWindow) {
+              console.log('ENHANCE_FUNC: Showing login alert for missing Gemini API key');
 
-        // Remove any instruction text that might be included
-        enhancedText = enhancedText.replace(/^Enhance this prompt while preserving its original intent.*?:\s*/i, '');
-        enhancedText = enhancedText.replace(/^Reformat this for AI coding assistants.*?:\s*/i, '');
-        enhancedText = enhancedText.replace(/^Enhance this prompt while preserving its original format.*?:\s*/i, '');
-        enhancedText = enhancedText.replace(/^Enhance this prompt while preserving its original intent and format.*?:\s*/i, '');
+              // Make sure the main window is visible and in front
+              if (!mainWindow.isVisible()) {
+                mainWindow.show();
+              }
+              mainWindow.focus();
+              mainWindow.moveTop();
 
-        return enhancedText;
+              console.log('ENHANCE_FUNC: Main window is now visible and focused');
+
+              // ALWAYS show login alert first before doing anything else
+              // The navigation to setup page is now handled inside showLoginAlert with a delay
+              showLoginAlert(mainWindow);
+
+              console.log('ENHANCE_FUNC: Login alert shown for Gemini');
+            }
+
+            throw new Error('Gemini API key not found. Please add your API key in settings.');
+          }
+
+          const genAI = new GoogleGenerativeAI(geminiApiKey);
+
+          // Fix model name handling for Gemini API
+          let geminiModelName;
+          if (model === 'gemini-pro') {
+            geminiModelName = 'gemini-pro';
+          } else if (model === 'gemini-1.5-pro') {
+            geminiModelName = 'gemini-1.5-pro';
+          } else if (model === 'gemini-1.5-flash') {
+            geminiModelName = 'gemini-1.5-flash';
+          } else if (model === 'gemini-1.5-pro-latest') {
+            geminiModelName = 'gemini-1.5-pro-latest';
+          } else if (model === 'gemini-ultra') {
+            geminiModelName = 'gemini-ultra';
+          } else {
+            // Default to gemini-pro if model is not recognized
+            console.log(`Unrecognized Gemini model: ${model}, defaulting to gemini-pro`);
+            geminiModelName = 'gemini-pro';
+          }
+
+          console.log('Using Gemini model name:', geminiModelName);
+          const geminiModel = genAI.getGenerativeModel({ model: geminiModelName });
+
+          try {
+            const geminiResponse = await geminiModel.generateContent([
+              { text: fullPrompt },
+              { text: userPrompt }
+            ]);
+
+            return geminiResponse.response.text();
+          } catch (error) {
+            console.error('Error calling Gemini API:', error);
+
+            // Check if this is an authentication error
+            if (error.message && (
+              error.message.includes('401 Unauthorized') ||
+              error.message.includes('403 Forbidden') ||
+              error.message.includes('invalid API key')
+            )) {
+              throw new Error('Invalid Gemini API key. Please check your API key in settings.');
+            }
+
+            // Check if this is a rate limit error
+            if (error.message && (
+              error.message.includes('429 Too Many Requests') ||
+              error.message.includes('exceeded your current quota')
+            )) {
+              throw new Error('Gemini API rate limit exceeded. Please try again later or switch to OpenAI in settings. You can also upgrade your Google AI Studio plan for higher limits.');
+            }
+
+            // Check if this is a model not found error
+            if (error.message && error.message.includes('not found for API version')) {
+              throw new Error('Invalid Gemini model specified. Please select a different model in settings.');
+            }
+
+            // Rethrow the original error for other cases
+            throw error;
+          }
+        } else {
+          // Use OpenAI API
+          console.log('Using OpenAI API with model:', model);
+          const openai = new OpenAI({ apiKey });
+
+          const response = await openai.chat.completions.create({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: fullPrompt,
+              },
+              {
+                role: 'user',
+                content: userPrompt,
+              },
+            ],
+            max_tokens: 500,
+            temperature: 0.7, // Balanced for consistency and creativity
+          });
+
+          return response.choices[0].message.content.trim();
+        }
       });
 
+      // Clean up format indicators and instruction text
+      let enhancedText = enhancedResult;
+      enhancedText = enhancedText.replace(/^\[Enhanced Prompt\]\s*/i, '');
+      enhancedText = enhancedText.replace(/^\[Answer\]\s*/i, '');
+      enhancedText = enhancedText.replace(/^\[Enhanced Agent Prompt\]\s*/i, '');
+      enhancedText = enhancedText.replace(/^\[Greeting Protocol\]\s*/i, '');
+      enhancedText = enhancedText.replace(/^improved prompt:\s*/i, '');
+      enhancedText = enhancedText.replace(/^enhanced prompt:\s*/i, '');
+      enhancedText = enhancedText.replace(/^\[ENHANCED\]\s*/i, '');
+      enhancedText = enhancedText.replace(/^\[ANSWER\]\s*/i, '');
+      enhancedText = enhancedText.replace(/^\[AGENT_TASK\]\s*/i, '');
+
+      // Remove any comments or explanations that might be included
+      enhancedText = enhancedText.replace(/^Note:.*$/im, '');
+      enhancedText = enhancedText.replace(/^Comment:.*$/im, '');
+      enhancedText = enhancedText.replace(/^Explanation:.*$/im, '');
+      enhancedText = enhancedText.replace(/\n\s*Note:.*$/im, '');
+      enhancedText = enhancedText.replace(/\n\s*Comment:.*$/im, '');
+      enhancedText = enhancedText.replace(/\n\s*Explanation:.*$/im, '');
+
+      // Remove any instruction text that might be included
+      enhancedText = enhancedText.replace(/^Enhance this prompt while preserving its original intent.*?:\s*/i, '');
+      enhancedText = enhancedText.replace(/^Reformat this for AI coding assistants.*?:\s*/i, '');
+      enhancedText = enhancedText.replace(/^Enhance this prompt while preserving its original format.*?:\s*/i, '');
+      enhancedText = enhancedText.replace(/^Enhance this prompt while preserving its original intent and format.*?:\s*/i, '');
+
       // Post-process based on platform, format, and original text
-      return postProcessEnhancement(result, analysis.context.platform, text, analysis.context.format || 'text');
+      return postProcessEnhancement(enhancedText, analysis.context.platform, text, analysis.context.format || 'text');
     };
 
     // If noCache is true, bypass the cache and call the enhancement function directly
@@ -424,22 +672,55 @@ async function enhanceTextWithContext(text, apiKey, model = 'gpt-4', mode = 'gen
 }
 
 // Legacy enhanceText function for backward compatibility
-async function enhanceText(text, apiKey, model = 'gpt-4', mode = 'general', noCache = false) {
+async function enhanceText(text, apiKey, model = 'gpt-4o-mini', mode = 'general', noCache = false) {
   return enhanceTextWithContext(text, apiKey, model, mode, noCache);
 }
 
 // Enhanced popup showing function with better error handling
-async function showDirectEnhancementPopup(mainWindow, store, isRegeneration = false, mode = 'general') {
+async function showDirectEnhancementPopup(mainWindow, _store, isRegeneration = false, mode = 'general') {
   try {
     // Check if the user is logged in FIRST before doing anything else
     console.log('Checking if user is logged in before proceeding');
-    const apiKey = store.get('openai-api-key', '');
-    if (!apiKey || apiKey.trim() === '') {
-      console.log('User is not logged in, showing login alert');
 
-      // Show the login alert
+    // Get the selected provider
+    const selectedProvider = global.store.get('selected-provider', 'openai');
+    console.log('Using provider:', selectedProvider);
+
+    // Get the appropriate API key based on the provider
+    let apiKey;
+    if (selectedProvider === 'gemini') {
+      apiKey = global.store.get('gemini-api-key', '');
+      console.log('Using Gemini API key:', apiKey ? 'Key exists' : 'No key found');
+      console.log('Gemini API key length:', apiKey ? apiKey.length : 0);
+
+      // Additional validation for Gemini API key
+      if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
+        console.log('Invalid or missing Gemini API key detected, treating as missing');
+        apiKey = '';
+      }
+    } else {
+      apiKey = global.store.get('openai-api-key', '');
+      console.log('Using OpenAI API key:', apiKey ? 'Key exists' : 'No key found');
+    }
+
+    if (!apiKey || apiKey.trim() === '') {
+      console.log('DIRECT: User is not logged in, showing login alert');
+
+      // Make sure the main window is visible and in front
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      mainWindow.focus();
+      mainWindow.moveTop();
+
+      console.log('DIRECT: Main window is now visible and focused');
+
+      // ALWAYS show login alert first before doing anything else
+      // The navigation to setup page is now handled inside showLoginAlert with a delay
       const { showLoginAlert } = require('./alert-utils.cjs');
       showLoginAlert(mainWindow);
+
+      console.log('DIRECT: Login alert shown');
 
       // Ensure popup manager is initialized
       try {
@@ -519,7 +800,7 @@ async function showDirectEnhancementPopup(mainWindow, store, isRegeneration = fa
     }
 
     // Get the selected model
-    const selectedModel = store.get('selected-model', 'gpt-4');
+    const selectedModel = global.store.get('selected-model', 'gpt-4o-mini');
     console.log('Using model:', selectedModel);
 
     // Create optimized popup window
@@ -527,13 +808,86 @@ async function showDirectEnhancementPopup(mainWindow, store, isRegeneration = fa
       width: 650,
       height: 600,
       backgroundColor: '#ffffff',
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false
+      }
     });
 
     const { BrowserWindow } = require('electron');
     enhancementPopupWindow = new BrowserWindow(windowConfig);
     setupWindowOptimizations(enhancementPopupWindow);
 
-    // Create optimized HTML content for the popup
+    // If in answer mode, show the instruction popup instead of the loading screen
+    if (mode === 'answer') {
+      console.log('Answer mode selected - showing instruction popup');
+
+      // Try multiple possible locations for the instruction popup HTML file
+      const possiblePaths = [
+        path.join(app.getAppPath(), 'instruction-popup.html'),
+        path.join(app.getAppPath(), 'dist', 'instruction-popup.html'),
+        path.join(__dirname, '..', 'instruction-popup.html'),
+        path.join(__dirname, '..', 'dist', 'instruction-popup.html'),
+        path.join(process.cwd(), 'instruction-popup.html'),
+        path.join(process.cwd(), 'dist', 'instruction-popup.html'),
+        path.join(process.cwd(), 'electron', 'instruction-popup.html')
+      ];
+
+      console.log('Searching for instruction-popup.html in the following paths:');
+      const instructionPopupPath = possiblePaths.find(p => {
+        const exists = fs.existsSync(p);
+        console.log(` - ${p} (${exists ? 'EXISTS' : 'NOT FOUND'})`);
+        return exists;
+      });
+
+      if (instructionPopupPath) {
+        console.log('Found instruction popup at:', instructionPopupPath);
+
+        // Store the text for later use
+        lastUsedText = textToEnhance;
+        global.lastUsedText = textToEnhance;
+
+        // Load the instruction popup HTML file
+        enhancementPopupWindow.loadFile(instructionPopupPath);
+
+        // Send the original text to the instruction popup
+        enhancementPopupWindow.webContents.once('did-finish-load', () => {
+          console.log('Instruction popup loaded, sending original text');
+          enhancementPopupWindow.webContents.send('original-text', textToEnhance);
+          console.log('Sent original text to instruction popup:', textToEnhance.substring(0, 50) + (textToEnhance.length > 50 ? '...' : ''));
+        });
+
+        // Show the window when ready
+        enhancementPopupWindow.once('ready-to-show', () => {
+          console.log('Instruction popup ready to show');
+          enhancementPopupWindow.show();
+          enhancementPopupWindow.focus();
+          enhancementPopupWindow.setAlwaysOnTop(true, 'screen-saver');
+          console.log('Instruction popup window is now visible');
+
+          // Ensure visibility - optimized delay
+          setTimeout(() => {
+            if (!enhancementPopupWindow.isDestroyed()) {
+              enhancementPopupWindow.show();
+              enhancementPopupWindow.focus();
+              enhancementPopupWindow.moveTop();
+            }
+          }, 100);
+        });
+
+        // Set up IPC handlers for the instruction popup
+        setupInstructionPopupHandlers(enhancementPopupWindow, apiKey, selectedModel, textToEnhance);
+        console.log('Set up instruction popup handlers');
+
+        return; // Exit early - don't proceed with enhancement
+      } else {
+        console.error('Instruction popup HTML file not found in any of the searched paths');
+        // Fall back to normal enhancement flow
+      }
+    }
+
+    // For other modes or if instruction popup file is not found, create optimized HTML content for the popup
     const loadingContent = createLoadingPopupContent(mode);
     const loadingPath = path.join(app.getPath('temp'), 'enhancing-prompt.html');
     fs.writeFileSync(loadingPath, loadingContent);
@@ -684,7 +1038,7 @@ async function showDirectEnhancementPopup(mainWindow, store, isRegeneration = fa
 }
 
 // Enhanced regeneration function with performance optimization
-async function processRegenerationInExistingWindow(window, store, requestedMode = null, checkClipboard = false) {
+async function processRegenerationInExistingWindow(window, _store, requestedMode = null, checkClipboard = false) {
   console.log('processRegenerationInExistingWindow called with requestedMode:', requestedMode, 'checkClipboard:', checkClipboard);
   console.log('Window object exists:', !!window);
 
@@ -727,8 +1081,26 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
       console.error('Error saving original content:', contentError);
     }
 
-    // Check if the user is logged in
-    const apiKey = store.get('openai-api-key', '');
+    // Get the selected provider
+    const selectedProvider = global.store.get('selected-provider', 'openai');
+    console.log('Regeneration using provider:', selectedProvider);
+
+    // Get the appropriate API key based on the provider
+    let apiKey;
+    if (selectedProvider === 'gemini') {
+      apiKey = global.store.get('gemini-api-key', '');
+      console.log('Regeneration using Gemini API key:', apiKey ? 'Key exists' : 'No key found');
+
+      // Additional validation for Gemini API key
+      if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
+        console.log('Invalid or missing Gemini API key detected, treating as missing');
+        apiKey = '';
+      }
+    } else {
+      apiKey = global.store.get('openai-api-key', '');
+      console.log('Regeneration using OpenAI API key:', apiKey ? 'Key exists' : 'No key found');
+    }
+
     console.log('Regeneration checking if user is logged in:', apiKey ? 'User is logged in' : 'User is not logged in');
     if (!apiKey || apiKey.trim() === '') {
       console.error('User is not logged in, showing login alert');
@@ -802,17 +1174,45 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
         mainWindow.focus();
         mainWindow.moveTop();
 
-        // Navigate to the login page
-        mainWindow.webContents.send('navigate-to-login');
+        // Navigate to the setup page for API key entry instead of just login
+        // This ensures users can directly enter their API key for the selected provider
+        try {
+          if (selectedProvider === 'gemini') {
+            console.log('Navigating to setup page for Gemini API key entry');
+            mainWindow.webContents.send('navigate-to-setup');
+          } else {
+            console.log('Navigating to login page for OpenAI');
+            mainWindow.webContents.send('navigate-to-login');
+          }
+        } catch (navError) {
+          console.error('Error sending navigation message:', navError);
+          // Fallback to login page if navigation fails
+          mainWindow.webContents.send('navigate-to-login');
+        }
 
-        // Show the login alert
+        // Make sure the main window is visible and in front
+        if (!mainWindow.isVisible()) {
+          mainWindow.show();
+        }
+        mainWindow.focus();
+        mainWindow.moveTop();
+
+        console.log('REGEN: Main window is now visible and focused');
+
+        // ALWAYS show login alert first before doing anything else
+        // The navigation to setup page is now handled inside showLoginAlert with a delay
         showLoginAlert(mainWindow);
 
-        // Close the current enhancement window
-        if (window && !window.isDestroyed()) {
-          console.log('Closing enhancement window after showing login alert');
-          window.close();
-        }
+        console.log('REGEN: Login alert shown');
+
+        // Wait a moment to ensure the alert is shown before closing the window
+        setTimeout(() => {
+          // Close the current enhancement window
+          if (window && !window.isDestroyed()) {
+            console.log('REGEN: Closing enhancement window after showing login alert');
+            window.close();
+          }
+        }, 1000); // Longer delay to ensure alert is shown first
 
         // Make sure the main window stays in the foreground
         setTimeout(() => {
@@ -827,7 +1227,7 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
         // Show error message in the current window if we can't show the login alert
         if (window && !window.isDestroyed() && window.webContents) {
           await window.webContents.executeJavaScript(`
-            document.getElementById('enhancedText').innerHTML = '<div style="color: #b91c1c; padding: 10px; background-color: #fee2e2; border-radius: 6px;">Error: You need to log in first. Please log in to use this feature.</div>';
+            document.getElementById('enhancedText').innerHTML = '<div style="color: #b91c1c; padding: 10px; background-color: #fee2e2; border-radius: 6px;">Error: You need to set up your ${selectedProvider === 'gemini' ? 'Gemini' : 'OpenAI'} API key first. Please go to the setup page to configure your API key.</div>';
           `);
         }
       }
@@ -835,7 +1235,7 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
       return;
     }
 
-    const selectedModel = store.get('selected-model', 'gpt-4');
+    const selectedModel = global.store.get('selected-model', 'gpt-4o-mini');
     console.log('Regeneration using model:', selectedModel);
 
     // Determine whether to use clipboard or cached text
@@ -922,6 +1322,96 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
     // Always force regeneration without caching when using the regenerate button
     const noCache = true;
     console.log('Forcing regeneration without cache');
+
+    // If this is answer mode, we need to show the instruction popup instead
+    if (mode === 'answer') {
+      console.log('Answer mode detected in processRegenerationInExistingWindow, showing instruction popup');
+
+      // Close the current window
+      if (window && !window.isDestroyed()) {
+        window.close();
+      }
+
+      // Show the instruction popup directly instead of using showDirectEnhancementPopup
+      // to avoid circular reference
+      try {
+        console.log('Creating instruction popup window directly');
+        const { BrowserWindow } = require('electron');
+        const path = require('path');
+        const fs = require('fs');
+
+        // Create a new window for the instruction popup
+        const instructionPopupWindow = new BrowserWindow({
+          width: 550,
+          height: 500,
+          show: false,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
+          }
+        });
+
+        // Find the instruction popup HTML file
+        const possiblePaths = [
+          path.join(app.getAppPath(), 'instruction-popup.html'),
+          path.join(app.getAppPath(), 'dist', 'instruction-popup.html'),
+          path.join(__dirname, '..', 'instruction-popup.html'),
+          path.join(__dirname, '..', 'dist', 'instruction-popup.html'),
+          path.join(process.cwd(), 'instruction-popup.html'),
+          path.join(process.cwd(), 'dist', 'instruction-popup.html'),
+          path.join(process.cwd(), 'electron', 'instruction-popup.html')
+        ];
+
+        console.log('Searching for instruction-popup.html in the following paths:');
+        const instructionPopupPath = possiblePaths.find(p => {
+          const exists = fs.existsSync(p);
+          console.log(` - ${p} (${exists ? 'EXISTS' : 'NOT FOUND'})`);
+          return exists;
+        });
+
+        if (instructionPopupPath) {
+          console.log('Found instruction popup at:', instructionPopupPath);
+          instructionPopupWindow.loadFile(instructionPopupPath);
+
+          // Send the original text to the instruction popup
+          instructionPopupWindow.webContents.once('did-finish-load', () => {
+            instructionPopupWindow.webContents.send('original-text', textToEnhance);
+            console.log('Sent original text to instruction popup:', textToEnhance.substring(0, 50) + (textToEnhance.length > 50 ? '...' : ''));
+          });
+
+          // Show the window when ready
+          instructionPopupWindow.once('ready-to-show', () => {
+            instructionPopupWindow.show();
+            instructionPopupWindow.focus();
+            console.log('Instruction popup window is now visible');
+          });
+
+          // Set up IPC handlers for the instruction popup
+          setupInstructionPopupHandlers(instructionPopupWindow, apiKey, selectedModel, textToEnhance);
+        } else {
+          console.error('Instruction popup HTML file not found in any of the searched paths');
+          // Show an error message
+          if (window && !window.isDestroyed() && window.webContents) {
+            await window.webContents.executeJavaScript(`
+              document.getElementById('enhancedText').innerHTML = '<div style="color: #b91c1c; padding: 10px; background-color: #fee2e2; border-radius: 6px;">Error: Could not find instruction popup HTML file.</div>';
+            `);
+          }
+        }
+      } catch (error) {
+        console.error('Error creating instruction popup window:', error);
+        // Show an error message
+        if (window && !window.isDestroyed() && window.webContents) {
+          await window.webContents.executeJavaScript(`
+            document.getElementById('enhancedText').innerHTML = '<div style="color: #b91c1c; padding: 10px; background-color: #fee2e2; border-radius: 6px;">Error: ${error.message}</div>';
+          `);
+        }
+      }
+      return;
+    }
+
+    // For other modes, process normally
+    console.log(`Processing regeneration for mode: ${mode}`);
 
     // Use performance optimizer for enhanced text
     console.log('Calling enhanceTextWithContext with noCache:', noCache);
@@ -1052,8 +1542,25 @@ function stopClipboardMonitoring() {
 
 // Helper function to check if the API key is set and show the login alert if needed
 function checkApiKeyAndShowLoginAlert(mainWindow, store) {
-  const apiKey = store.get('openai-api-key', '');
-  console.log('Checking API key:', apiKey ? 'API key exists' : 'No API key');
+  // Get the selected provider
+  const selectedProvider = store.get('selected-provider', 'openai');
+  console.log('Checking API key for provider:', selectedProvider);
+
+  // Get the appropriate API key based on the provider
+  let apiKey;
+  if (selectedProvider === 'gemini') {
+    apiKey = store.get('gemini-api-key', '');
+    console.log('Checking Gemini API key:', apiKey ? 'API key exists' : 'No API key');
+
+    // Additional validation for Gemini API key
+    if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
+      console.log('Invalid or missing Gemini API key detected, treating as missing');
+      apiKey = '';
+    }
+  } else {
+    apiKey = store.get('openai-api-key', '');
+    console.log('Checking OpenAI API key:', apiKey ? 'API key exists' : 'No API key');
+  }
 
   // Check if API key is empty or not properly set
   if (!apiKey || apiKey.trim() === '') {
@@ -1084,6 +1591,78 @@ function checkApiKeyAndShowLoginAlert(mainWindow, store) {
   return true;
 }
 
+// Function to set up IPC handlers for the instruction popup
+function setupInstructionPopupHandlers(window, apiKey, model, originalText) {
+  // Handler for the request-enhancement event with instructions
+  const handleRequestEnhancementWithInstructions = async (event, _promptType, modelId, _noCache, instructions) => {
+    // Only process events from this window
+    if (event.sender.id !== window.webContents.id) {
+      return;
+    }
+
+    console.log('Processing request-enhancement-with-instructions with instructions:', instructions);
+
+    try {
+      if (!apiKey) {
+        window.webContents.send('enhancement-error', 'API key not set');
+        return;
+      }
+
+      // Use the provided model or fall back to the stored model
+      const selectedModel = modelId || model;
+
+      // Show loading state in the window
+      await window.webContents.executeJavaScript(`
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Generating...';
+      `);
+
+      // Generate the response using the answer-with-instructions mode
+      const enhancedText = await enhanceTextWithContext(
+        originalText,
+        apiKey,
+        selectedModel,
+        'answer-with-instructions',
+        instructions
+      );
+
+      // Send the result back to the window
+      window.webContents.send('enhancement-result', enhancedText);
+
+      // Re-enable the submit button
+      await window.webContents.executeJavaScript(`
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Generate Response';
+      `);
+    } catch (error) {
+      console.error('Error generating response with instructions:', error);
+      window.webContents.send('enhancement-error', error.message);
+
+      // Re-enable the submit button
+      await window.webContents.executeJavaScript(`
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Generate Response';
+      `);
+    }
+  };
+
+  // Register the handler for this specific window
+  ipcMain.on('request-enhancement', (event, promptType, modelId, noCache, instructions) => {
+    if (promptType === 'answer-with-instructions') {
+      handleRequestEnhancementWithInstructions(event, promptType, modelId, noCache, instructions);
+    }
+  });
+
+  // Clean up when window is closed
+  window.on('closed', () => {
+    // Remove the specific handler to prevent memory leaks
+    ipcMain.removeAllListeners('request-enhancement');
+  });
+}
+
 // Initialize performance optimizer
 const initializeOptimizer = async () => {
   const optimizer = PerformanceOptimizer.getInstance();
@@ -1093,6 +1672,26 @@ const initializeOptimizer = async () => {
 
 // Register IPC handlers
 ipcMain.on('confirm-enhancement', handleConfirmEnhancement);
+
+// Add handler for refresh-clipboard-text
+ipcMain.on('refresh-clipboard-text', (event) => {
+  console.log('Received refresh-clipboard-text event');
+  try {
+    // Get the text from clipboard
+    const clipboardText = clipboard.readText('selection') || clipboard.readText();
+    console.log('Clipboard text length:', clipboardText.length);
+
+    // Send the text back to the renderer
+    if (event.sender) {
+      event.sender.send('original-text', clipboardText);
+      console.log('Sent clipboard text to renderer');
+    } else {
+      console.error('Event sender is not available');
+    }
+  } catch (error) {
+    console.error('Error in refresh-clipboard-text handler:', error);
+  }
+});
 
 // Export functions and variables
 module.exports = {

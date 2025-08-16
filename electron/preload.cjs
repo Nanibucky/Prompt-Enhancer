@@ -51,15 +51,8 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Expose a function to trigger the enhancement directly
-contextBridge.exposeInMainWorld('enhancer', {
-  triggerEnhancement: () => {
-    console.log('triggerEnhancement called from renderer');
-    ipcRenderer.send('enhance-prompt');
-  }
-});
-
-contextBridge.exposeInMainWorld('api', {
+// Create a shared API object with all methods
+const sharedAPI = {
   // API Key and Settings methods
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
   setApiKey: (apiKey) => ipcRenderer.invoke('set-api-key', apiKey),
@@ -67,20 +60,40 @@ contextBridge.exposeInMainWorld('api', {
   getAutoPaste: () => ipcRenderer.invoke('get-auto-paste'),
   toggleAutoPaste: () => ipcRenderer.invoke('toggle-auto-paste'),
 
+  // Provider-specific API key methods
+  getOpenAIApiKey: () => ipcRenderer.invoke('get-openai-api-key'),
+  setOpenAIApiKey: (apiKey) => ipcRenderer.invoke('set-openai-api-key', apiKey),
+  removeOpenAIApiKey: () => ipcRenderer.invoke('remove-openai-api-key'),
+  getGeminiApiKey: () => ipcRenderer.invoke('get-gemini-api-key'),
+  setGeminiApiKey: (apiKey) => ipcRenderer.invoke('set-gemini-api-key', apiKey),
+  removeGeminiApiKey: () => ipcRenderer.invoke('remove-gemini-api-key'),
+
+  // Provider selection methods
+  getSelectedProvider: () => ipcRenderer.invoke('get-selected-provider'),
+  setSelectedProvider: (provider) => ipcRenderer.invoke('set-selected-provider', provider),
+
   // Model selection methods
   getSelectedModel: () => ipcRenderer.invoke('get-selected-model'),
   setSelectedModel: (modelId) => ipcRenderer.invoke('set-selected-model', modelId),
   getAvailableModels: () => ipcRenderer.invoke('get-available-models'),
+  getModelsForProvider: (provider) => ipcRenderer.invoke('get-models-for-provider', provider),
 
   // Keyboard shortcut methods
   getKeyboardShortcut: () => ipcRenderer.invoke('get-keyboard-shortcut'),
   setKeyboardShortcut: (shortcut) => ipcRenderer.invoke('set-keyboard-shortcut', shortcut),
   resetKeyboardShortcut: () => ipcRenderer.invoke('reset-keyboard-shortcut'),
 
+  // Enhancement events
+  onEnhancePrompt: (callback) => {
+    ipcRenderer.on('enhance-prompt', callback);
+    return () => ipcRenderer.removeAllListeners('enhance-prompt');
+  },
+
   // Enhancement popup methods
   getOriginalText: () => ipcRenderer.invoke('get-original-text'),
   refreshClipboardText: () => ipcRenderer.send('refresh-clipboard-text'),
-  requestEnhancement: (promptType, modelId, noCache = false) => ipcRenderer.send('request-enhancement', promptType, modelId, noCache),
+  requestEnhancement: (promptType, modelId, noCache = false, instructions = null) =>
+    ipcRenderer.send('request-enhancement', promptType, modelId, noCache, instructions),
   confirmEnhancement: (text) => ipcRenderer.send('confirm-enhancement', text),
   onOriginalText: (callback) => {
     ipcRenderer.on('original-text', (_, text) => callback(text));
@@ -100,10 +113,28 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('navigate-to-login', () => callback());
     return () => ipcRenderer.removeAllListeners('navigate-to-login');
   },
+  
+  onNavigateToSetup: (callback) => {
+    ipcRenderer.on('navigate-to-setup', () => callback());
+    return () => ipcRenderer.removeAllListeners('navigate-to-setup');
+  },
 
   // Prompt Management
   getPromptHistory: () => ipcRenderer.invoke('get-prompt-history'),
   getFavoritePrompts: () => ipcRenderer.invoke('get-favorite-prompts'),
   savePromptHistory: (prompts) => ipcRenderer.invoke('save-prompt-history', prompts),
   saveFavoritePrompts: (prompts) => ipcRenderer.invoke('save-favorite-prompts', prompts),
+
+  // Trigger enhancement directly
+  triggerEnhancement: () => {
+    console.log('triggerEnhancement called from renderer');
+    ipcRenderer.send('enhance-prompt');
+  }
+};
+
+// Expose the API under both 'electron' and 'api' namespaces for backward compatibility
+contextBridge.exposeInMainWorld('electron', sharedAPI);
+contextBridge.exposeInMainWorld('api', sharedAPI);
+contextBridge.exposeInMainWorld('enhancer', {
+  triggerEnhancement: sharedAPI.triggerEnhancement
 });

@@ -1,10 +1,12 @@
 // electron/electron-main.js
 const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
 const path = require('path');
-const ElectronStore = require('electron-store');
+const Store = require('electron-store').default;
 const { setupPromptEnhancer } = require('./dist/prompt-enhancer');
 
-const store = new ElectronStore();
+const store = new Store({
+  clearInvalidConfig: true // Clear the config if it's invalid
+});
 
 let mainWindow;
 
@@ -13,7 +15,7 @@ function createWindow() {
     width: 900,
     height: 700,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
     },
   });

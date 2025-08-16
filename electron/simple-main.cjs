@@ -1,10 +1,11 @@
 // electron/simple-main.cjs
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const ElectronStore = require('electron-store');
+const Store = require('electron-store').default;
 
 // Initialize the store with encryption
-const store = new ElectronStore({
+const store = new Store({
+  clearInvalidConfig: true, // Clear the config if it's invalid
   encryptionKey: 'prompt-enhancer-secure-key-123'
 });
 

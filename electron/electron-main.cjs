@@ -22,10 +22,36 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
   try {
     console.log('processRegenerationInExistingWindow called with mode:', requestedMode, 'checkClipboard:', checkClipboard);
 
-    // Get the API key
-    const apiKey = store.get('openai-api-key', '');
-    if (!apiKey) {
-      console.error('No API key found');
+    // Get the selected provider
+    const selectedProvider = store.get('selected-provider', 'openai');
+    console.log('Using provider:', selectedProvider);
+
+    // Get the appropriate API key based on the provider
+    let apiKey;
+    if (selectedProvider === 'gemini') {
+      apiKey = store.get('gemini-api-key', '');
+      console.log('Using Gemini API key:', apiKey ? 'Key exists' : 'No key found');
+    } else {
+      apiKey = store.get('openai-api-key', '');
+      console.log('Using OpenAI API key:', apiKey ? 'Key exists' : 'No key found');
+    }
+
+    if (!apiKey || apiKey.trim() === '') {
+      console.error('No API key found for provider:', selectedProvider);
+
+      // Show login alert
+      showLoginAlert(mainWindow);
+
+      // Navigate to setup page
+      if (mainWindow && mainWindow.webContents) {
+        try {
+          mainWindow.webContents.send('navigate-to-setup');
+          console.log('Sent navigate-to-setup message to main window');
+        } catch (navError) {
+          console.error('Error sending navigation message:', navError);
+        }
+      }
+
       return;
     }
 
@@ -135,6 +161,8 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
     console.log('Forcing regeneration without cache in processRegenerationInExistingWindow');
 
     // Enhance the text with the specified mode and no caching
+    // Pass the provider information to the enhanceText function
+    console.log(`Enhancing text with provider: ${selectedProvider}, model: ${selectedModel}, mode: ${mode}`);
     const enhancedText = await enhanceText(textToEnhance, apiKey, selectedModel, mode, noCache);
 
     // Update the window content with the enhanced text
@@ -153,21 +181,65 @@ async function processRegenerationInExistingWindow(window, store, requestedMode 
 
 // Function to process new text in an existing window has been removed
 
-// Create a simple in-memory store for API keys and settings
-const store = {
-  data: {
-    'keyboard-shortcut': process.platform === 'darwin' ? 'CommandOrControl+Space+Space' : 'CommandOrControl+Space+Space'
-  },
-  get: (key, defaultValue) => {
-    return key in store.data ? store.data[key] : defaultValue;
-  },
-  set: (key, value) => {
-    store.data[key] = value;
-  },
-  delete: (key) => {
-    delete store.data[key];
-  }
-};
+// Use electron-store for persistent storage
+// Import the default export from electron-store
+let store;
+try {
+  const Store = require('electron-store').default;
+  store = new Store({
+    clearInvalidConfig: true, // Clear the config if it's invalid
+    defaults: {
+      'keyboard-shortcut': process.platform === 'darwin' ? 'CommandOrControl+Space+Space' : 'CommandOrControl+Space+Space',
+      'selected-provider': 'openai',
+      'selected-model': 'gpt-4o-mini',
+      'auto-paste': true
+    }
+  });
+
+  // Log the store path for debugging
+  console.log('Electron store path:', store.path);
+  console.log('Current store contents:', store.store);
+} catch (error) {
+  console.error('Error initializing electron-store:', error);
+
+  // Create a fallback in-memory store
+  console.log('Creating fallback in-memory store');
+  store = {
+    _data: {
+      'keyboard-shortcut': process.platform === 'darwin' ? 'CommandOrControl+Space+Space' : 'CommandOrControl+Space+Space',
+      'selected-provider': 'openai',
+      'selected-model': 'gpt-4o-mini',
+      'auto-paste': true
+    },
+    get: function(key, defaultValue) {
+      return key in this._data ? this._data[key] : defaultValue;
+    },
+    set: function(key, value) {
+      if (typeof key === 'object') {
+        Object.assign(this._data, key);
+      } else {
+        this._data[key] = value;
+      }
+      return true;
+    },
+    delete: function(key) {
+      delete this._data[key];
+      return true;
+    },
+    path: '/tmp/fallback-store.json',
+    store: {}
+  };
+
+  // Update the store property to return the in-memory data
+  Object.defineProperty(store, 'store', {
+    get: function() {
+      return this._data;
+    },
+    set: function(value) {
+      this._data = value;
+    }
+  });
+}
 
 // Make the store globally accessible for other modules
 global.store = store;
@@ -253,7 +325,7 @@ function createWindow() {
     width: 900,
     height: 700,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
     },
   });
@@ -323,23 +395,165 @@ function createWindow() {
     return !currentValue;
   });
 
+  // Provider-specific API key methods
+  ipcMain.handle('get-openai-api-key', () => {
+    const key = store.get('openai-api-key', '');
+    console.log('Getting OpenAI API key:', key ? 'Key exists' : 'No key found');
+    return key;
+  });
+
+  ipcMain.handle('set-openai-api-key', (_, apiKey) => {
+    console.log('Setting OpenAI API key:', apiKey ? 'Key provided' : 'Empty key');
+    store.set('openai-api-key', apiKey);
+    // Verify the key was saved
+    const savedKey = store.get('openai-api-key', '');
+    console.log('OpenAI API key saved:', savedKey ? 'Success' : 'Failed');
+    return true;
+  });
+
+  ipcMain.handle('remove-openai-api-key', () => {
+    console.log('Removing OpenAI API key');
+    store.delete('openai-api-key');
+    return true;
+  });
+
+  ipcMain.handle('get-gemini-api-key', () => {
+    const key = store.get('gemini-api-key', '');
+    console.log('Getting Gemini API key:', key ? 'Key exists' : 'No key found');
+    return key;
+  });
+
+  ipcMain.handle('set-gemini-api-key', (_, apiKey) => {
+    console.log('Setting Gemini API key:', apiKey ? 'Key provided' : 'Empty key');
+
+    // Validate the API key
+    if (!apiKey || typeof apiKey !== 'string' || apiKey === 'undefined' || apiKey === 'null') {
+      console.error('Invalid Gemini API key provided:', apiKey);
+      return false;
+    }
+
+    store.set('gemini-api-key', apiKey);
+    // Verify the key was saved
+    const savedKey = store.get('gemini-api-key', '');
+    console.log('Gemini API key saved:', savedKey ? 'Success' : 'Failed');
+    console.log('Saved key matches provided key:', savedKey === apiKey);
+    return true;
+  });
+
+  ipcMain.handle('remove-gemini-api-key', () => {
+    console.log('Removing Gemini API key');
+    store.delete('gemini-api-key');
+
+    // Verify the key was removed
+    const keyExists = store.has('gemini-api-key');
+    console.log('Gemini API key removed successfully:', !keyExists);
+
+    return true;
+  });
+
+  // Provider selection methods
+  ipcMain.handle('get-selected-provider', () => {
+    const provider = store.get('selected-provider', 'openai');
+    console.log('Getting selected provider:', provider);
+    return provider;
+  });
+
+  ipcMain.handle('set-selected-provider', (_, provider) => {
+    console.log('Setting selected provider:', provider);
+
+    if (provider !== 'openai' && provider !== 'gemini') {
+      console.error('Invalid provider:', provider);
+      return false;
+    }
+
+    store.set('selected-provider', provider);
+    console.log('Provider saved successfully');
+
+    // When changing provider, ensure the selected model is compatible
+    const currentModel = store.get('selected-model');
+    console.log('Current model:', currentModel);
+
+    const isOpenAIModel = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o', 'gpt-4o-mini'].includes(currentModel);
+    const isGeminiModel = ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro-latest', 'gemini-ultra'].includes(currentModel);
+    console.log('Is OpenAI model:', isOpenAIModel, 'Is Gemini model:', isGeminiModel);
+
+    if (provider === 'openai' && !isOpenAIModel) {
+      console.log('Switching to default OpenAI model: gpt-4o-mini');
+      store.set('selected-model', 'gpt-4o-mini');
+    } else if (provider === 'gemini' && !isGeminiModel) {
+      console.log('Switching to default Gemini model: gemini-1.5-pro-latest');
+      store.set('selected-model', 'gemini-1.5-pro-latest');
+    }
+
+    return true;
+  });
+
   // Model selection methods
   ipcMain.handle('get-selected-model', () => {
-    return store.get('selected-model', 'gpt-4o-mini');
+    const model = store.get('selected-model', 'gpt-4o-mini');
+    console.log('Getting selected model:', model);
+    return model;
   });
 
   ipcMain.handle('set-selected-model', (_, modelId) => {
+    console.log('Setting selected model:', modelId);
+
+    // Validate the model ID
+    const openaiModels = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4o', 'gpt-4o-mini'];
+    const geminiModels = ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro-latest', 'gemini-ultra'];
+    const allModels = [...openaiModels, ...geminiModels];
+
+    if (!allModels.includes(modelId)) {
+      console.error('Invalid model ID:', modelId);
+      return false;
+    }
+
+    // Get the current provider
+    const provider = store.get('selected-provider', 'openai');
+    console.log('Current provider:', provider);
+
+    // Check if the model is compatible with the provider
+    const isOpenAIModel = openaiModels.includes(modelId);
+    const isGeminiModel = geminiModels.includes(modelId);
+
+    if ((provider === 'openai' && !isOpenAIModel) || (provider === 'gemini' && !isGeminiModel)) {
+      console.error('Model is not compatible with the current provider');
+      return false;
+    }
+
+    // Save the model
     store.set('selected-model', modelId);
+    console.log('Model saved successfully');
     return true;
   });
 
   ipcMain.handle('get-available-models', () => {
     return [
-      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and cost-effective' },
-      { id: 'gpt-4', name: 'GPT-4', description: 'More powerful and accurate' },
-      { id: 'gpt-4o', name: 'GPT-4o', description: 'Latest model with enhanced capabilities' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Efficient version of GPT-4o with great performance' }
+      // OpenAI models
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and cost-effective', provider: 'openai' },
+      { id: 'gpt-4', name: 'GPT-4', description: 'More powerful and accurate', provider: 'openai' },
+      { id: 'gpt-4o', name: 'GPT-4o', description: 'Latest model with enhanced capabilities', provider: 'openai' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Efficient version of GPT-4o with great performance', provider: 'openai' },
+      // Gemini models
+      { id: 'gemini-pro', name: 'Gemini Pro', description: 'Balanced model for most tasks', provider: 'gemini' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Advanced model with improved capabilities', provider: 'gemini' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and efficient model for quick responses', provider: 'gemini' }
     ];
+  });
+
+  ipcMain.handle('get-models-for-provider', (_, provider) => {
+    const allModels = [
+      // OpenAI models
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and cost-effective', provider: 'openai' },
+      { id: 'gpt-4', name: 'GPT-4', description: 'More powerful and accurate', provider: 'openai' },
+      { id: 'gpt-4o', name: 'GPT-4o', description: 'Latest model with enhanced capabilities', provider: 'openai' },
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Efficient version of GPT-4o with great performance', provider: 'openai' },
+      // Gemini models
+      { id: 'gemini-pro', name: 'Gemini Pro', description: 'Balanced model for most tasks', provider: 'gemini' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Advanced model with improved capabilities', provider: 'gemini' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and efficient model for quick responses', provider: 'gemini' }
+    ];
+    return allModels.filter(model => model.provider === provider);
   });
 
   // Handle clipboard text refresh
@@ -421,6 +635,7 @@ function registerShortcut() {
     const hotkeyCallback = () => {
       console.log(`Hotkey triggered: ${shortcut}`);
       if (mainWindow) {
+        // CRITICAL: First check if any popups are already showing
         if (getDirectEnhancementPopupShowing()) {
           console.log('Direct enhancement popup already showing, skipping');
           return;
@@ -431,14 +646,52 @@ function registerShortcut() {
           return;
         }
 
-        const apiKey = store.get('openai-api-key', '');
-        if (!apiKey) {
-          console.log('API key not set, showing login alert');
+        // CRITICAL: Always check authentication status first before doing anything else
+        console.log('HOTKEY: Checking authentication status before proceeding');
+
+        // Get the selected provider
+        const selectedProvider = store.get('selected-provider', 'openai');
+        console.log('HOTKEY: Using provider:', selectedProvider);
+
+        // Get the appropriate API key based on the provider
+        let apiKey;
+        if (selectedProvider === 'gemini') {
+          apiKey = store.get('gemini-api-key', '');
+          console.log('HOTKEY: Checking Gemini API key:', apiKey ? 'Key exists' : 'No key found');
+
+          // Additional validation for Gemini API key
+          if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
+            console.log('HOTKEY: Invalid or missing Gemini API key detected');
+            apiKey = '';
+          }
+        } else {
+          apiKey = store.get('openai-api-key', '');
+          console.log('HOTKEY: Checking OpenAI API key:', apiKey ? 'Key exists' : 'No key found');
+        }
+
+        // CRITICAL: If no valid API key, show login alert and exit immediately
+        if (!apiKey || apiKey.trim() === '') {
+          console.log('HOTKEY: API key not set or empty, showing login alert');
+
+          // Make sure the main window is visible and in front
+          if (!mainWindow.isVisible()) {
+            mainWindow.show();
+          }
+          mainWindow.focus();
+          mainWindow.moveTop();
+
+          console.log('HOTKEY: Main window is now visible and focused');
+
+          // ALWAYS show login alert first before doing anything else
+          // The navigation to setup page is now handled inside showLoginAlert with a delay
           showLoginAlert(mainWindow);
+
+          console.log('HOTKEY: Login alert shown, exiting hotkey callback');
           return;
         }
 
-        console.log('Showing direct enhancement popup');
+        // Only proceed if authentication is confirmed
+        console.log('HOTKEY: Authentication confirmed, showing enhancement popup');
         showDirectEnhancementPopup(mainWindow, store)
           .catch(error => {
             console.error('Error showing direct enhancement popup:', error);
@@ -487,6 +740,53 @@ function handleProtocolRequest(url) {
   if (url.startsWith('prompt-enhancer://regenerate')) {
     // Handle regeneration request
     console.log('Received regeneration request:', url);
+
+    // CRITICAL: Always check authentication status first before doing anything else
+    console.log('PROTOCOL: Checking authentication status before proceeding');
+
+    // Get the selected provider
+    const selectedProvider = store.get('selected-provider', 'openai');
+    console.log('PROTOCOL: Using provider:', selectedProvider);
+
+    // Get the appropriate API key based on the provider
+    let apiKey;
+    if (selectedProvider === 'gemini') {
+      apiKey = store.get('gemini-api-key', '');
+      console.log('PROTOCOL: Checking Gemini API key:', apiKey ? 'Key exists' : 'No key found');
+
+      // Additional validation for Gemini API key
+      if (!apiKey || apiKey === 'undefined' || apiKey === 'null' || apiKey.trim() === '') {
+        console.log('PROTOCOL: Invalid or missing Gemini API key detected');
+        apiKey = '';
+      }
+    } else {
+      apiKey = store.get('openai-api-key', '');
+      console.log('PROTOCOL: Checking OpenAI API key:', apiKey ? 'Key exists' : 'No key found');
+    }
+
+    // CRITICAL: If no valid API key, show login alert and exit immediately
+    if (!apiKey || apiKey.trim() === '') {
+      console.log('PROTOCOL: API key not set or empty, showing login alert');
+
+      // Make sure the main window is visible and in front
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      mainWindow.focus();
+      mainWindow.moveTop();
+
+      console.log('PROTOCOL: Main window is now visible and focused');
+
+      // ALWAYS show login alert first before doing anything else
+      // The navigation to setup page is now handled inside showLoginAlert with a delay
+      showLoginAlert(mainWindow);
+
+      console.log('PROTOCOL: Login alert shown, exiting protocol handler');
+      return;
+    }
+
+    // Only proceed if authentication is confirmed
+    console.log('PROTOCOL: Authentication confirmed, proceeding with regeneration');
 
     // Parse the URL to get the mode parameter
     const urlObj = new URL(url);

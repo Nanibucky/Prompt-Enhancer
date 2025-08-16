@@ -4,14 +4,18 @@ import * as path from 'path';
 import Store from 'electron-store';
 import { OpenAI } from 'openai';
 
-// Import the OpenAIModel type
+// Import the model types and services
 import { OpenAIModel } from './openai-service.js';
+import { GeminiModel } from './gemini-service.js';
+import { ModelProvider, SupportedModel, modelService } from './model-service.js';
 
 // Define the store schema
 interface StoreSchema {
   'openai-api-key': string;
+  'gemini-api-key': string;
+  'selected-provider': ModelProvider;
   'auto-paste': boolean;
-  'selected-model': OpenAIModel;
+  'selected-model': SupportedModel;
   'dev-server-url': string;
 }
 
@@ -21,6 +25,14 @@ const store: any = new Store({
     'openai-api-key': {
       type: 'string',
       default: ''
+    },
+    'gemini-api-key': {
+      type: 'string',
+      default: ''
+    },
+    'selected-provider': {
+      type: 'string',
+      default: 'openai'
     },
     'auto-paste': {
       type: 'boolean',
@@ -32,7 +44,7 @@ const store: any = new Store({
     },
     'dev-server-url': {
       type: 'string',
-      default: 'http://localhost:8080'
+      default: 'http://localhost:5173'
     }
   },
   encryptionKey: process.env.ENCRYPTION_KEY || 'prompt-enhancer-secure-key',
@@ -45,14 +57,19 @@ let isQuitting = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 400,
-    height: 520,
+    width: 1000,
+    height: 700,
+    minWidth: 800,
+    minHeight: 600,
     show: false,
-    frame: false,
-    resizable: false,
-    fullscreenable: false,
+    frame: true,
+    resizable: true,
+    fullscreenable: true,
+    title: 'AI Prompt Enhancer',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    trafficLightPosition: process.platform === 'darwin' ? { x: 20, y: 20 } : undefined,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -63,7 +80,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../index.html'));
   } else {
     // In development, load from the dev server
-    const devServerUrl = store.get('dev-server-url') as string || 'http://localhost:8080';
+    const devServerUrl = store.get('dev-server-url') as string || 'http://localhost:5173';
     mainWindow.loadURL(devServerUrl);
   }
 
@@ -126,9 +143,12 @@ function registerShortcut() {
   });
 }
 
-// Function to enhance prompt using OpenAI
+// Function to enhance prompt using the selected provider (OpenAI or Gemini)
 async function enhancePrompt() {
-  const apiKey = store.get('openai-api-key');
+  const provider = store.get('selected-provider') as ModelProvider || 'openai';
+  const apiKey = provider === 'openai'
+    ? store.get('openai-api-key')
+    : store.get('gemini-api-key');
 
   if (!apiKey) {
     mainWindow?.show();
@@ -143,7 +163,15 @@ async function enhancePrompt() {
   }
 
   try {
-    const selectedModel = (store.get('selected-model') || 'gpt-4o-mini') as OpenAIModel;
+    const selectedModel = store.get('selected-model') as SupportedModel ||
+      (provider === 'openai' ? 'gpt-4o-mini' : 'gemini-pro');
+
+    // If the selected model doesn't match the provider, use the default model for that provider
+    if (!modelService.isModelFromProvider(selectedModel, provider)) {
+      const defaultModel = modelService.getDefaultModelForProvider(provider);
+      store.set('selected-model', defaultModel);
+    }
+
     const systemPrompt = `You are an expert prompt engineer that specializes in rewriting user prompts to be more effective with large language models (LLMs). Your ONLY job is to enhance prompts, not to provide answers.
 
 RULES:
@@ -170,14 +198,12 @@ FORMAT YOUR RESPONSE AS:
 
 DO NOT include explanations about your changes, commentary, or anything else outside the enhanced prompt itself.`;
 
-    // Import the OpenAI service
-    const { openai } = await import('./openai-service.js');
-
-    const enhancedText = await openai.enhancePrompt(
+    const enhancedText = await modelService.enhancePrompt(
       textToEnhance,
       systemPrompt,
       apiKey as string,
-      selectedModel
+      selectedModel,
+      provider
     );
 
     clipboard.writeText(enhancedText);
@@ -206,21 +232,62 @@ DO NOT include explanations about your changes, commentary, or anything else out
   }
 }
 
-// IPC handlers
-ipcMain.handle('get-api-key', () => {
+// IPC handlers for API keys
+ipcMain.handle('get-openai-api-key', () => {
   return store.get('openai-api-key');
 });
 
-ipcMain.handle('set-api-key', (_, apiKey: string) => {
+ipcMain.handle('set-openai-api-key', (_, apiKey: string) => {
   store.set('openai-api-key', apiKey);
   return true;
 });
 
-ipcMain.handle('remove-api-key', () => {
+ipcMain.handle('remove-openai-api-key', () => {
   store.delete('openai-api-key');
   return true;
 });
 
+ipcMain.handle('get-gemini-api-key', () => {
+  return store.get('gemini-api-key');
+});
+
+ipcMain.handle('set-gemini-api-key', (_, apiKey: string) => {
+  store.set('gemini-api-key', apiKey);
+  return true;
+});
+
+ipcMain.handle('remove-gemini-api-key', () => {
+  store.delete('gemini-api-key');
+  return true;
+});
+
+// For backward compatibility
+ipcMain.handle('get-api-key', () => {
+  const provider = store.get('selected-provider') as ModelProvider || 'openai';
+  return provider === 'openai' ? store.get('openai-api-key') : store.get('gemini-api-key');
+});
+
+ipcMain.handle('set-api-key', (_, apiKey: string) => {
+  const provider = store.get('selected-provider') as ModelProvider || 'openai';
+  if (provider === 'openai') {
+    store.set('openai-api-key', apiKey);
+  } else {
+    store.set('gemini-api-key', apiKey);
+  }
+  return true;
+});
+
+ipcMain.handle('remove-api-key', () => {
+  const provider = store.get('selected-provider') as ModelProvider || 'openai';
+  if (provider === 'openai') {
+    store.delete('openai-api-key');
+  } else {
+    store.delete('gemini-api-key');
+  }
+  return true;
+});
+
+// Settings handlers
 ipcMain.handle('get-auto-paste', () => {
   return store.get('auto-paste');
 });
@@ -231,19 +298,72 @@ ipcMain.handle('toggle-auto-paste', () => {
   return !current;
 });
 
+// Provider selection handlers
+ipcMain.handle('get-selected-provider', () => {
+  return store.get('selected-provider') || 'openai';
+});
+
+ipcMain.handle('set-selected-provider', (_, provider: ModelProvider) => {
+  store.set('selected-provider', provider);
+
+  // When changing provider, ensure the selected model is compatible
+  const currentModel = store.get('selected-model') as SupportedModel;
+  if (!modelService.isModelFromProvider(currentModel, provider)) {
+    const defaultModel = modelService.getDefaultModelForProvider(provider);
+    store.set('selected-model', defaultModel);
+  }
+
+  return true;
+});
+
 // Model selection handlers
 ipcMain.handle('get-selected-model', () => {
   return store.get('selected-model') || 'gpt-4o-mini';
 });
 
-ipcMain.handle('set-selected-model', (_, modelId: OpenAIModel) => {
+ipcMain.handle('set-selected-model', (_, modelId: SupportedModel) => {
   store.set('selected-model', modelId);
   return true;
 });
 
 ipcMain.handle('get-available-models', async () => {
-  const { openai } = await import('./openai-service.js');
-  return openai.getAvailableModels();
+  return modelService.getAllAvailableModels();
+});
+
+ipcMain.handle('get-models-for-provider', async (_, provider: ModelProvider) => {
+  return modelService.getModelsForProvider(provider);
+});
+
+// Keyboard shortcut handlers (placeholders for now)
+ipcMain.handle('get-keyboard-shortcut', () => {
+  return 'CommandOrControl+Space+Space';
+});
+
+ipcMain.handle('set-keyboard-shortcut', (_, shortcut: string) => {
+  // TODO: Implement dynamic shortcut registration
+  return true;
+});
+
+ipcMain.handle('reset-keyboard-shortcut', () => {
+  // TODO: Reset to default shortcut
+  return true;
+});
+
+// Enhancement popup handlers (placeholders for now)
+ipcMain.handle('get-original-text', () => {
+  return '';
+});
+
+ipcMain.on('request-enhancement', (_, promptType: string, modelId?: string, noCache: boolean = false, instructions: string | null = null) => {
+  // TODO: Implement enhancement popup functionality
+});
+
+ipcMain.on('confirm-enhancement', (_, text: string) => {
+  // TODO: Handle enhancement confirmation
+});
+
+ipcMain.on('refresh-clipboard-text', () => {
+  // TODO: Refresh clipboard text
 });
 
 // App lifecycle

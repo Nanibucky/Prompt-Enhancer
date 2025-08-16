@@ -40,7 +40,7 @@ const createEnhancementWindow = (parentWindow: BrowserWindow) => {
     webPreferences: {
       nodeIntegration: false, // Set to false for security
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
@@ -235,8 +235,9 @@ export const setupPromptEnhancer = (mainWindow: BrowserWindow) => {
                                       'General Enhancement');
 
         // If in answer mode, return the original text without enhancement
+        // This is a fallback in case the direct-enhancer.cjs doesn't handle it
         if (promptType === 'answer') {
-          console.log('Answer mode selected - returning original text without enhancement');
+          console.log('Answer mode selected in prompt-enhancer.ts - this should have been handled earlier');
           enhancementWindow.webContents.send('enhancement-result', storedOriginalText);
           return;
         }
@@ -283,7 +284,7 @@ export const setupPromptEnhancer = (mainWindow: BrowserWindow) => {
 
       if (autoPasteEnabled) {
         // Import the autoPaste function
-        const { autoPaste } = require('./auto-paste.cjs');
+        const { autoPaste } = await import('./auto-paste.cjs');
 
         // IMPORTANT: Close the window immediately before attempting to paste
         // This is critical for focus to properly return to the previous application
